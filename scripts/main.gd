@@ -424,6 +424,7 @@ func _spawn_room_enemies() -> void:
 		if current_room_type == "BOSS" and i == 0:
 			enemy.make_boss(depth)
 		enemy.target = player
+		enemy.projectile_parent = projectile_layer
 		enemy.global_position = _random_spawn_position()
 		enemy.killed.connect(_on_enemy_killed)
 		actor_layer.add_child(enemy)
