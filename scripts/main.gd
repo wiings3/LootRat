@@ -34,6 +34,7 @@ var selected_item_label: RichTextLabel = null
 var selected_equip_button: Button = null
 var selected_sell_button: Button = null
 var sort_button: Button = null
+var claim_unlock_button: Button = null
 var filter_buttons: Dictionary = {}
 
 var state: String = "hub"
@@ -68,6 +69,9 @@ var feed_lines: Array[String] = []
 var selected_stash_item_id: int = -1
 var stash_filter: String = "all"
 var stash_sort_mode: String = "value"
+
+var claim_tier: int = 1
+var tier_best_depths: Dictionary = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
 
 func _ready() -> void:
 	_configure_input_map()
@@ -243,7 +247,7 @@ func _build_hub_panel() -> void:
 	claim_label = RichTextLabel.new()
 	claim_label.bbcode_enabled = true
 	claim_label.fit_content = false
-	claim_label.custom_minimum_size = Vector2(270.0, 168.0)
+	claim_label.custom_minimum_size = Vector2(270.0, 154.0)
 	claim_label.add_theme_font_size_override("normal_font_size", 15)
 	root.add_child(claim_label)
 
@@ -251,18 +255,22 @@ func _build_hub_panel() -> void:
 	juice_title.add_theme_color_override("font_color", Color(0.68, 0.72, 0.80))
 	root.add_child(juice_title)
 
-	root.add_child(_make_button("DENSITY  +20%", _juice_density, Vector2(270.0, 34.0)))
-	root.add_child(_make_button("ITEM QUANTITY  +25%", _juice_quantity, Vector2(270.0, 34.0)))
-	root.add_child(_make_button("CURRENCY  +25%", _juice_currency, Vector2(270.0, 34.0)))
-	root.add_child(_make_button("ELITE CHANCE  +3.5%", _juice_elite, Vector2(270.0, 34.0)))
+	root.add_child(_make_button("DENSITY  +20%", _juice_density, Vector2(270.0, 31.0)))
+	root.add_child(_make_button("ITEM QUANTITY  +25%", _juice_quantity, Vector2(270.0, 31.0)))
+	root.add_child(_make_button("CURRENCY  +25%", _juice_currency, Vector2(270.0, 31.0)))
+	root.add_child(_make_button("ELITE CHANCE  +3.5%", _juice_elite, Vector2(270.0, 31.0)))
 
-	var run_button := _make_button("RUN CLAIM", _start_claim, Vector2(270.0, 46.0))
+	var run_button := _make_button("RUN CLAIM", _start_claim, Vector2(270.0, 42.0))
 	run_button.add_theme_font_size_override("font_size", 19)
 	root.add_child(run_button)
 
-	var reset_button := _make_button("RESET INVESTMENT", _reset_juice, Vector2(270.0, 30.0))
+	var reset_button := _make_button("RESET INVESTMENT", _reset_juice, Vector2(270.0, 27.0))
 	reset_button.add_theme_font_size_override("font_size", 12)
 	root.add_child(reset_button)
+
+	claim_unlock_button = _make_button("NEXT TIER LOCKED", _unlock_next_claim_tier, Vector2(270.0, 31.0))
+	claim_unlock_button.add_theme_font_size_override("font_size", 12)
+	root.add_child(claim_unlock_button)
 
 func _build_character_panel() -> void:
 	character_panel = PanelContainer.new()
@@ -588,9 +596,10 @@ func _spawn_room_enemies() -> void:
 					kind = rng.randi_range(0, 3)
 			_:
 				kind = rng.randi_range(0, 3)
-		enemy.configure(kind, depth, elite)
+		var effective_enemy_depth: int = depth + (claim_tier - 1) * 3
+		enemy.configure(kind, effective_enemy_depth, elite)
 		if current_room_type == "BOSS" and i == 0:
-			enemy.make_boss(depth)
+			enemy.make_boss(effective_enemy_depth)
 		enemy.target = player
 		enemy.projectile_parent = projectile_layer
 		enemy.global_position = _random_spawn_position()
@@ -698,7 +707,7 @@ func _on_loot_collected(pickup: LootPickup) -> void:
 func _open_floor_clear() -> void:
 	decision_open = true
 	decision_panel.visible = true
-	decision_title.text = "DEPTH %d CLEARED" % depth
+	decision_title.text = "TIER %d  •  DEPTH %d CLEARED" % [claim_tier, depth]
 	decision_body.text = "Unsecured haul: ₵%d + %d Seals + %d gear\nEstimated run value: ₵%d\n\nExtract and bank it, or descend for more density, elites and loot." % [run_coins, run_seals, run_gear.size(), _current_run_value()]
 	_set_decision_buttons(true, true)
 
@@ -711,6 +720,7 @@ func _descend() -> void:
 func _extract_run() -> void:
 	if state != "run":
 		return
+	_record_successful_extraction()
 	stash_coins += run_coins
 	stash_seals += run_seals
 	for item in run_gear:
@@ -775,10 +785,10 @@ func _on_player_hp_changed(current_hp: float, maximum_hp: float) -> void:
 	hp_bar.value = current_hp
 
 func _run_quantity_multiplier() -> float:
-	return 1.0 + float(juice_quantity) * 0.25 + float(depth - 1) * 0.22
+	return 1.0 + float(juice_quantity) * 0.25 + float(depth - 1) * 0.22 + float(claim_tier - 1) * 0.06
 
 func _run_currency_multiplier() -> float:
-	return 1.0 + float(juice_currency) * 0.25 + float(depth - 1) * 0.20
+	return 1.0 + float(juice_currency) * 0.25 + float(depth - 1) * 0.20 + float(claim_tier - 1) * 0.18
 
 func _current_run_value() -> int:
 	var value: int = run_coins + run_seals * 100
@@ -822,8 +832,8 @@ func _calculate_player_stats() -> Dictionary:
 func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
 	var slot: String = gear_slots[rng.randi_range(0, gear_slots.size() - 1)]
-	var item_level: int = maxi(1, item_depth + (1 if from_elite else 0))
-	var rarity: String = _roll_item_rarity(item_level, from_elite)
+	var item_level: int = maxi(1, 1 + (claim_tier - 1) * 4 + (item_depth - 1) + (1 if from_elite else 0))
+	var rarity: String = _roll_item_rarity(item_depth, from_elite)
 	var base: Dictionary = _roll_item_base(slot)
 
 	var item: Dictionary = {
@@ -872,7 +882,7 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 	# not merely a fourth random stat.
 	if rarity == "Gilded":
 		var greed_stat: String = "currency_find" if rng.randf() < 0.55 else "item_find"
-		var greed_tier: int = maxi(1, _best_affix_tier(item_level) - 1)
+		var greed_tier: int = _roll_affix_tier(item_depth)
 		var greed_value: float = _roll_affix_value(greed_stat, greed_tier)
 		_apply_item_stat(item, greed_stat, greed_value)
 		affixes.append(_make_affix_record(greed_stat, greed_tier, greed_value))
@@ -886,7 +896,7 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 		if available.is_empty():
 			break
 		var stat: String = available[rng.randi_range(0, available.size() - 1)]
-		var tier: int = _roll_affix_tier(item_level)
+		var tier: int = _roll_affix_tier(item_depth)
 		var value: float = _roll_affix_value(stat, tier)
 		_apply_item_stat(item, stat, value)
 		affixes.append(_make_affix_record(stat, tier, value))
@@ -897,19 +907,41 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 	item["value"] = _item_value(item)
 	return item
 
-func _roll_item_rarity(item_level: int, from_elite: bool) -> String:
-	var gilded_chance: float = 0.004 + float(item_level) * 0.001
-	var rare_chance: float = 0.10 + float(item_level) * 0.008
-	var magic_chance: float = 0.38 + float(item_level) * 0.006
-	if from_elite:
-		gilded_chance += 0.018
-		rare_chance += 0.18
-		magic_chance += 0.12
+func _roll_item_rarity(item_depth: int, from_elite: bool) -> String:
+	# Claim Tier is a hard eligibility gate. Depth can improve odds, but it
+	# cannot cause an early Claim to leak later progression rewards.
+	var depth_bonus: float = float(maxi(0, item_depth - 1))
+	var rare_chance: float = 0.0
+	var gilded_chance: float = 0.0
+	var magic_chance: float = 0.30
 
-	gilded_chance = minf(gilded_chance, 0.08)
-	rare_chance = minf(rare_chance, 0.42)
-	magic_chance = minf(magic_chance, 0.55)
+	match claim_tier:
+		1:
+			# T1 is deliberately humble: Common gear and increasingly frequent
+			# Magic gear. Rare is impossible regardless of how deep you descend.
+			magic_chance = minf(0.62, 0.28 + depth_bonus * 0.055 + (0.10 if from_elite else 0.0))
+		2:
+			magic_chance = minf(0.68, 0.38 + depth_bonus * 0.045 + (0.10 if from_elite else 0.0))
+			# Even after T2 is earned, a Rare cannot appear on Depth 1.
+			if item_depth >= 2:
+				rare_chance = minf(0.11, 0.012 + float(item_depth - 2) * 0.014 + (0.035 if from_elite else 0.0))
+		3:
+			magic_chance = minf(0.70, 0.42 + depth_bonus * 0.035 + (0.08 if from_elite else 0.0))
+			if item_depth >= 2:
+				rare_chance = minf(0.20, 0.045 + float(item_depth - 2) * 0.022 + (0.065 if from_elite else 0.0))
+		4:
+			magic_chance = minf(0.70, 0.44 + depth_bonus * 0.030 + (0.07 if from_elite else 0.0))
+			if item_depth >= 2:
+				rare_chance = minf(0.30, 0.09 + float(item_depth - 2) * 0.028 + (0.09 if from_elite else 0.0))
+		_:
+			magic_chance = minf(0.68, 0.42 + depth_bonus * 0.025 + (0.06 if from_elite else 0.0))
+			if item_depth >= 2:
+				rare_chance = minf(0.34, 0.13 + float(item_depth - 2) * 0.026 + (0.10 if from_elite else 0.0))
+			# Gilded is true chase loot: T5 only, and never before Depth 5.
+			if item_depth >= 5:
+				gilded_chance = minf(0.022, 0.0025 + float(item_depth - 5) * 0.0018 + (0.0075 if from_elite else 0.0))
 
+	# Preserve a healthy Common share. We subtract special rarities before Magic.
 	var roll: float = rng.randf()
 	if roll < gilded_chance:
 		return "Gilded"
@@ -954,25 +986,29 @@ func _affix_candidates(slot: String) -> Array[String]:
 		_:
 			return ["damage", "max_hp", "move_speed", "currency_find", "item_find"]
 
-func _best_affix_tier(item_level: int) -> int:
-	if item_level >= 12:
-		return 1
-	if item_level >= 8:
-		return 2
-	if item_level >= 5:
-		return 3
-	if item_level >= 3:
-		return 4
-	return 5
+func _best_affix_tier() -> int:
+	# T1/T2/T3/T4/T5 cap out at T5/T4/T3/T2/T1 affixes respectively.
+	return clampi(6 - claim_tier, 1, 5)
 
-func _roll_affix_tier(item_level: int) -> int:
-	var best: int = _best_affix_tier(item_level)
+func _roll_affix_tier(item_depth: int) -> int:
+	var best: int = _best_affix_tier()
+	if best >= 5:
+		return 5
+
+	# Going deeper makes the best tier available in this Claim more likely,
+	# but never unlocks a tier belonging to a later Claim.
+	var best_chance: float = minf(0.82, 0.38 + float(maxi(0, item_depth - 1)) * 0.055)
 	var roll: float = rng.randf()
-	if roll > 0.93:
-		return mini(5, best + 2)
-	if roll > 0.70:
-		return mini(5, best + 1)
-	return best
+	if roll < best_chance:
+		return best
+
+	var second: int = mini(5, best + 1)
+	if second >= 5:
+		return second
+
+	if roll < best_chance + 0.42:
+		return second
+	return mini(5, best + 2)
 
 func _roll_affix_value(stat: String, tier: int) -> float:
 	var low: float = 0.0
@@ -1187,6 +1223,72 @@ func _make_starter_item(slot: String) -> Dictionary:
 	item["value"] = _item_value(item)
 	return item
 
+func _claim_tier_depth_requirement(next_tier: int) -> int:
+	match next_tier:
+		2: return 4
+		3: return 5
+		4: return 6
+		5: return 8
+		_: return 999
+
+func _claim_tier_unlock_cost(next_tier: int) -> int:
+	match next_tier:
+		2: return 1200
+		3: return 6000
+		4: return 25000
+		5: return 100000
+		_: return 0
+
+func _tier_loot_ceiling(tier_value: int) -> String:
+	match tier_value:
+		1: return "MAGIC"
+		2, 3, 4: return "RARE"
+		_: return "GILDED"
+
+func _record_successful_extraction() -> void:
+	var key: String = str(claim_tier)
+	var previous_best: int = int(tier_best_depths.get(key, 0))
+	if depth > previous_best:
+		tier_best_depths[key] = depth
+
+func _unlock_next_claim_tier() -> void:
+	if claim_tier >= 5:
+		return
+	var next_tier: int = claim_tier + 1
+	var requirement: int = _claim_tier_depth_requirement(next_tier)
+	var best_depth: int = int(tier_best_depths.get(str(claim_tier), 0))
+	var cost: int = _claim_tier_unlock_cost(next_tier)
+	if best_depth < requirement or stash_coins < cost:
+		return
+	stash_coins -= cost
+	claim_tier = next_tier
+	_clear_juice()
+	_update_hub_ui()
+	_save_game()
+
+func _update_claim_unlock_button() -> void:
+	if claim_unlock_button == null:
+		return
+	if claim_tier >= 5:
+		claim_unlock_button.text = "MAX CLAIM TIER REACHED"
+		claim_unlock_button.disabled = true
+		return
+
+	var next_tier: int = claim_tier + 1
+	var requirement: int = _claim_tier_depth_requirement(next_tier)
+	var best_depth: int = int(tier_best_depths.get(str(claim_tier), 0))
+	var cost: int = _claim_tier_unlock_cost(next_tier)
+
+	if best_depth < requirement:
+		claim_unlock_button.text = "T%d LOCKED  •  EXTRACT DEPTH %d" % [next_tier, requirement]
+		claim_unlock_button.disabled = true
+	elif stash_coins < cost:
+		claim_unlock_button.text = "UNLOCK T%d  •  ₵%d NEEDED" % [next_tier, cost]
+		claim_unlock_button.disabled = true
+	else:
+		claim_unlock_button.text = "UNLOCK T%d  •  ₵%d" % [next_tier, cost]
+		claim_unlock_button.disabled = false
+
 func _update_hub_ui() -> void:
 	var invested: int = juice_density + juice_quantity + juice_currency + juice_elite
 	var risk: String = "LOW"
@@ -1201,7 +1303,14 @@ func _update_hub_ui() -> void:
 		risk = "RAT BRAIN"
 		risk_color = "#ff5d73"
 
-	claim_label.text = "[color=#8d96a6]NEXT CLAIM[/color]\n[b][font_size=22]ABANDONED CLAIM[/font_size][/b]\n\n[color=#8d96a6]SEALS AVAILABLE[/color]  [color=#63d8ff][b]%d[/b][/color]\n[color=#8d96a6]SEALS INVESTED[/color]   [b]%d[/b]\n[color=#8d96a6]RISK[/color]             [color=%s][b]%s[/b][/color]\n\nDensity [b]+%d%%[/b]\nItem Quantity [b]+%d%%[/b]\nCurrency Quantity [b]+%d%%[/b]\nElite Chance [b]+%.1f%%[/b]" % [stash_seals, invested, risk_color, risk, juice_density * 20, juice_quantity * 25, juice_currency * 25, float(juice_elite) * 3.5]
+	var best_depth: int = int(tier_best_depths.get(str(claim_tier), 0))
+	var affix_ceiling: int = _best_affix_tier()
+	var next_gate: String = "MAX TIER"
+	if claim_tier < 5:
+		var next_tier: int = claim_tier + 1
+		next_gate = "T%d: extract D%d + ₵%d" % [next_tier, _claim_tier_depth_requirement(next_tier), _claim_tier_unlock_cost(next_tier)]
+
+	claim_label.text = "[color=#8d96a6]NEXT CLAIM[/color]  [b]TIER %d[/b]\n[b][font_size=20]ABANDONED CLAIM[/font_size][/b]\n[color=#8d96a6]Loot ceiling[/color] [b]%s[/b]   [color=#8d96a6]Affix ceiling[/color] [b]T%d[/b]\n[color=#8d96a6]Best extract[/color] D%d   [color=#8d96a6]%s[/color]\n[color=#8d96a6]Seals[/color] %d   [color=#8d96a6]Invested[/color] %d   [color=%s][b]%s[/b][/color]\n\nDensity [b]+%d%%[/b]  •  Items [b]+%d%%[/b]\nCurrency [b]+%d%%[/b]  •  Elite [b]+%.1f%%[/b]" % [claim_tier, _tier_loot_ceiling(claim_tier), affix_ceiling, best_depth, next_gate, stash_seals, invested, risk_color, risk, juice_density * 20, juice_quantity * 25, juice_currency * 25, float(juice_elite) * 3.5]
 
 	var stats: Dictionary = _calculate_player_stats()
 	stats_label.text = "[color=#8d96a6][b]OFFENSE[/b][/color]\nWeapon Base   [b]%s[/b]\nDamage        [b]%.1f[/b]\nAttack Rate   [b]%.2f / sec[/b]\n\n[color=#8d96a6][b]SURVIVAL[/b][/color]\nMax HP        [b]%.0f[/b]\nMove Speed    [b]%.0f[/b]\n\n[color=#8d96a6][b]LOOT[/b][/color]\nCurrency Find [color=#f6d05f][b]%.1f%%[/b][/color]\nItem Find     [color=#8dd7ff][b]%.1f%%[/b][/color]" % [String(stats["weapon_type"]).capitalize(), float(stats["damage"]), float(stats["attack_speed"]), float(stats["max_hp"]), float(stats["move_speed"]), float(stats["currency_find"]), float(stats["item_find"])]
@@ -1211,6 +1320,7 @@ func _update_hub_ui() -> void:
 	_rebuild_inventory()
 	_refresh_selected_item()
 	_update_stash_controls()
+	_update_claim_unlock_button()
 	_update_top_bar()
 
 func _rebuild_inventory() -> void:
@@ -1475,7 +1585,7 @@ func _update_top_bar() -> void:
 
 	if state == "run":
 		top_label.text = "CLAIM"
-		run_label.text = "D%d  •  ROOM %d/%d  %s  •  %d ENEMIES  •  UNSECURED ₵%d" % [depth, room_index, rooms_total, current_room_type, alive_enemies, _current_run_value()]
+		run_label.text = "T%d  D%d  •  ROOM %d/%d  %s  •  %d ENEMIES  •  UNSECURED ₵%d" % [claim_tier, depth, room_index, rooms_total, current_room_type, alive_enemies, _current_run_value()]
 	else:
 		top_label.text = "LOOT RAT"
 		run_label.text = ""
@@ -1510,7 +1620,9 @@ func _save_game() -> void:
 		"seals": stash_seals,
 		"gear": stash_gear,
 		"equipped": equipped,
-		"next_item_id": next_item_id
+		"next_item_id": next_item_id,
+		"claim_tier": claim_tier,
+		"tier_best_depths": tier_best_depths
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file != null:
@@ -1529,6 +1641,13 @@ func _load_save() -> void:
 	stash_coins = int(data.get("coins", 0))
 	stash_seals = int(data.get("seals", 5))
 	next_item_id = int(data.get("next_item_id", 1))
+	claim_tier = clampi(int(data.get("claim_tier", 1)), 1, 5)
+	var depths_variant: Variant = data.get("tier_best_depths", {})
+	if typeof(depths_variant) == TYPE_DICTIONARY:
+		var loaded_depths: Dictionary = depths_variant as Dictionary
+		for tier_number in range(1, 6):
+			var tier_key: String = str(tier_number)
+			tier_best_depths[tier_key] = maxi(0, int(loaded_depths.get(tier_key, 0)))
 	var gear_variant: Variant = data.get("gear", [])
 	if typeof(gear_variant) == TYPE_ARRAY:
 		var loaded_gear: Array = gear_variant as Array
@@ -1555,6 +1674,8 @@ func _wipe_save() -> void:
 	selected_stash_item_id = -1
 	stash_filter = "all"
 	stash_sort_mode = "value"
+	claim_tier = 1
+	tier_best_depths = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
 	_ensure_starter_gear()
 	_update_hub_ui()
 	_save_game()

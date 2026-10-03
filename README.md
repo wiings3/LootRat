@@ -4,6 +4,24 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.31 — Claim Tier Progression
+- Added persistent **Claim Tiers T1–T5**.
+- Claim Tier is now the hard gate for loot progression; descending deeply cannot bypass it.
+- **T1:** Common + Magic only. Rare is impossible.
+- **T2:** first Rare eligibility, but never on Depth 1.
+- **T3/T4:** progressively better Rare odds and higher affix ceilings.
+- **T5:** Gilded becomes eligible, but only from Depth 5 onward and at chase-level odds.
+- Affix ceilings are tied directly to Claim Tier: T1→T5 affixes, T2→T4, T3→T3, T4→T2, T5→T1.
+- Depth improves the chance of rolling the best affix tier currently unlocked, but never unlocks a later tier.
+- Successful extraction records your best depth for the active Claim Tier.
+- Unlocking the next Claim Tier requires both a successful depth milestone and a substantial Coin investment:
+  - T2: extract Depth 4 + ₵1,200
+  - T3: extract Depth 5 + ₵6,000
+  - T4: extract Depth 6 + ₵25,000
+  - T5: extract Depth 8 + ₵100,000
+- Higher Claim Tiers are also substantially harder and only modestly more rewarding, preventing immediate wealth runaway.
+- Claim Tier progression is saved permanently and reset by Wipe Save.
+
 ## v0.3 — Itemization
 - Gear now has meaningful **base types** with built-in implicit stats.
 - Four weapon bases retain distinct firing behavior and now have different implicit bonuses.
