@@ -4,6 +4,19 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.25 — Hub Overhaul
+- New three-column hub: **Claim Prep / Loadout & Stats / Stash**.
+- Coins, Seals, and Net Worth are now persistent top-level readouts.
+- Claim juicing clearly shows available Seals, invested Seals, risk, and modifier totals.
+- Build stats are grouped into Offense, Survival, and Loot.
+- Equipped Weapon, Armor, and Charm have their own readable loadout section.
+- Stash filters: All / Weapons / Armor / Charms.
+- Stash sorting: Value / Rarity / Newest.
+- Clicking an item opens a dedicated inspector.
+- Inspector compares the selected item against currently equipped gear with green/red stat deltas.
+- Equip and Sell actions now operate from the inspector.
+- Bulk selling respects the active stash filter.
+
 ## v0.2 — First Real Claim
 - Claims are now 5–8 room runs instead of one arena dump.
 - Random PACK, SWARM, ELITE, TREASURE, and BOSS rooms.

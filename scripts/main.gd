@@ -13,10 +13,14 @@ var player: LootPlayer = null
 
 var hud: CanvasLayer = null
 var top_label: Label = null
+var coins_label: Label = null
+var seals_label: Label = null
+var networth_label: Label = null
 var run_label: Label = null
 var feed_label: Label = null
 var hp_bar: ProgressBar = null
 var hub_panel: PanelContainer = null
+var character_panel: PanelContainer = null
 var gear_panel: PanelContainer = null
 var decision_panel: PanelContainer = null
 var decision_title: Label = null
@@ -25,6 +29,12 @@ var inventory_list: VBoxContainer = null
 var equipped_label: RichTextLabel = null
 var claim_label: RichTextLabel = null
 var stats_label: RichTextLabel = null
+var stash_count_label: Label = null
+var selected_item_label: RichTextLabel = null
+var selected_equip_button: Button = null
+var selected_sell_button: Button = null
+var sort_button: Button = null
+var filter_buttons: Dictionary = {}
 
 var state: String = "hub"
 var depth: int = 1
@@ -54,6 +64,10 @@ var juice_currency: int = 0
 var juice_elite: int = 0
 
 var feed_lines: Array[String] = []
+
+var selected_stash_item_id: int = -1
+var stash_filter: String = "all"
+var stash_sort_mode: String = "value"
 
 func _ready() -> void:
 	_configure_input_map()
@@ -113,19 +127,30 @@ func _build_ui() -> void:
 	add_child(hud)
 
 	var top_bg := ColorRect.new()
-	top_bg.color = Color(0.025, 0.03, 0.045, 0.96)
+	top_bg.color = Color(0.018, 0.022, 0.032, 0.98)
 	top_bg.position = Vector2.ZERO
-	top_bg.size = Vector2(1280.0, 62.0)
+	top_bg.size = Vector2(1280.0, 76.0)
 	hud.add_child(top_bg)
 
 	top_label = Label.new()
-	top_label.position = Vector2(20.0, 14.0)
-	top_label.add_theme_font_size_override("font_size", 22)
+	top_label.position = Vector2(18.0, 12.0)
+	top_label.size = Vector2(160.0, 50.0)
+	top_label.text = "LOOT RAT"
+	top_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	top_label.add_theme_font_size_override("font_size", 24)
+	top_label.add_theme_color_override("font_color", Color(0.90, 0.93, 0.98))
 	hud.add_child(top_label)
 
+	coins_label = _make_wealth_label(Vector2(190.0, 10.0), Vector2(170.0, 54.0))
+	seals_label = _make_wealth_label(Vector2(370.0, 10.0), Vector2(160.0, 54.0))
+	networth_label = _make_wealth_label(Vector2(540.0, 10.0), Vector2(220.0, 54.0))
+	hud.add_child(coins_label)
+	hud.add_child(seals_label)
+	hud.add_child(networth_label)
+
 	hp_bar = ProgressBar.new()
-	hp_bar.position = Vector2(430.0, 16.0)
-	hp_bar.size = Vector2(260.0, 26.0)
+	hp_bar.position = Vector2(790.0, 14.0)
+	hp_bar.size = Vector2(210.0, 24.0)
 	hp_bar.min_value = 0.0
 	hp_bar.max_value = 100.0
 	hp_bar.value = 100.0
@@ -133,112 +158,253 @@ func _build_ui() -> void:
 	hud.add_child(hp_bar)
 
 	run_label = Label.new()
-	run_label.position = Vector2(715.0, 14.0)
-	run_label.add_theme_font_size_override("font_size", 18)
+	run_label.position = Vector2(790.0, 42.0)
+	run_label.size = Vector2(470.0, 26.0)
+	run_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	run_label.add_theme_font_size_override("font_size", 15)
+	run_label.add_theme_color_override("font_color", Color(0.72, 0.78, 0.88))
 	hud.add_child(run_label)
 
 	feed_label = Label.new()
-	feed_label.position = Vector2(935.0, 84.0)
-	feed_label.size = Vector2(325.0, 180.0)
+	feed_label.position = Vector2(945.0, 94.0)
+	feed_label.size = Vector2(305.0, 190.0)
 	feed_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	feed_label.add_theme_font_size_override("font_size", 16)
+	feed_label.add_theme_font_size_override("font_size", 15)
 	hud.add_child(feed_label)
 
 	_build_hub_panel()
+	_build_character_panel()
 	_build_gear_panel()
 	_build_decision_panel()
 
 	var controls := Label.new()
 	controls.text = "WASD move   •   Hold LMB fire   •   SPACE dash   •   E enter next room"
-	controls.position = Vector2(20.0, 682.0)
-	controls.add_theme_color_override("font_color", Color(0.65, 0.7, 0.78))
+	controls.position = Vector2(20.0, 688.0)
+	controls.add_theme_color_override("font_color", Color(0.50, 0.55, 0.64))
 	hud.add_child(controls)
+
+func _make_wealth_label(position_value: Vector2, size_value: Vector2) -> Label:
+	var label := Label.new()
+	label.position = position_value
+	label.size = size_value
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", Color(0.93, 0.95, 0.98))
+	return label
+
+func _panel_style(background: Color, border: Color, width: int = 1) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.border_width_left = width
+	style.border_width_top = width
+	style.border_width_right = width
+	style.border_width_bottom = width
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_left = 14.0
+	style.content_margin_top = 12.0
+	style.content_margin_right = 14.0
+	style.content_margin_bottom = 12.0
+	return style
+
+func _section_title(text_value: String) -> Label:
+	var label := Label.new()
+	label.text = text_value
+	label.add_theme_font_size_override("font_size", 24)
+	label.add_theme_color_override("font_color", Color(0.95, 0.96, 1.0))
+	return label
+
+func _muted_label(text_value: String) -> Label:
+	var label := Label.new()
+	label.text = text_value
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", Color(0.54, 0.59, 0.68))
+	return label
 
 func _build_hub_panel() -> void:
 	hub_panel = PanelContainer.new()
-	hub_panel.position = Vector2(50.0, 92.0)
-	hub_panel.size = Vector2(555.0, 550.0)
+	hub_panel.position = Vector2(18.0, 90.0)
+	hub_panel.size = Vector2(300.0, 574.0)
+	hub_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
 	hud.add_child(hub_panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 10)
+	root.add_theme_constant_override("separation", 7)
 	hub_panel.add_child(root)
 
-	var title := Label.new()
-	title.text = "CLAIM TABLE"
-	title.add_theme_font_size_override("font_size", 30)
-	root.add_child(title)
-
-	var intro := Label.new()
-	intro.text = "Spend Seals to juice the next Claim. More danger = more loot."
-	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	root.add_child(intro)
+	root.add_child(_section_title("CLAIM PREP"))
+	root.add_child(_muted_label("Invest Seals now. The payout stays unsecured until you extract."))
 
 	claim_label = RichTextLabel.new()
 	claim_label.bbcode_enabled = true
-	claim_label.fit_content = true
-	claim_label.custom_minimum_size = Vector2(500.0, 160.0)
+	claim_label.fit_content = false
+	claim_label.custom_minimum_size = Vector2(270.0, 168.0)
+	claim_label.add_theme_font_size_override("normal_font_size", 15)
 	root.add_child(claim_label)
 
-	var juice_grid := GridContainer.new()
-	juice_grid.columns = 2
-	juice_grid.add_theme_constant_override("h_separation", 8)
-	juice_grid.add_theme_constant_override("v_separation", 8)
-	root.add_child(juice_grid)
+	var juice_title := _muted_label("MODIFIERS  •  each click costs 1 Seal")
+	juice_title.add_theme_color_override("font_color", Color(0.68, 0.72, 0.80))
+	root.add_child(juice_title)
 
-	juice_grid.add_child(_make_button("+ Density  [1 Seal]", _juice_density))
-	juice_grid.add_child(_make_button("+ Quantity  [1 Seal]", _juice_quantity))
-	juice_grid.add_child(_make_button("+ Currency  [1 Seal]", _juice_currency))
-	juice_grid.add_child(_make_button("+ Elite Chance [1 Seal]", _juice_elite))
+	root.add_child(_make_button("DENSITY  +20%", _juice_density, Vector2(270.0, 34.0)))
+	root.add_child(_make_button("ITEM QUANTITY  +25%", _juice_quantity, Vector2(270.0, 34.0)))
+	root.add_child(_make_button("CURRENCY  +25%", _juice_currency, Vector2(270.0, 34.0)))
+	root.add_child(_make_button("ELITE CHANCE  +3.5%", _juice_elite, Vector2(270.0, 34.0)))
 
-	var action_row := HBoxContainer.new()
-	action_row.add_theme_constant_override("separation", 10)
-	root.add_child(action_row)
-	action_row.add_child(_make_button("RUN CLAIM", _start_claim, Vector2(250.0, 52.0)))
-	action_row.add_child(_make_button("RESET JUICE", _reset_juice, Vector2(180.0, 52.0)))
+	var run_button := _make_button("RUN CLAIM", _start_claim, Vector2(270.0, 46.0))
+	run_button.add_theme_font_size_override("font_size", 19)
+	root.add_child(run_button)
+
+	var reset_button := _make_button("RESET INVESTMENT", _reset_juice, Vector2(270.0, 30.0))
+	reset_button.add_theme_font_size_override("font_size", 12)
+	root.add_child(reset_button)
+
+func _build_character_panel() -> void:
+	character_panel = PanelContainer.new()
+	character_panel.position = Vector2(328.0, 90.0)
+	character_panel.size = Vector2(340.0, 574.0)
+	character_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
+	hud.add_child(character_panel)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 8)
+	character_panel.add_child(root)
+
+	root.add_child(_section_title("LOADOUT"))
+	root.add_child(_muted_label("Equipped gear drives combat power and loot efficiency."))
+
+	equipped_label = RichTextLabel.new()
+	equipped_label.bbcode_enabled = true
+	equipped_label.fit_content = false
+	equipped_label.custom_minimum_size = Vector2(310.0, 190.0)
+	equipped_label.add_theme_font_size_override("normal_font_size", 14)
+	root.add_child(equipped_label)
+
+	var divider := HSeparator.new()
+	root.add_child(divider)
+
+	var stat_header := Label.new()
+	stat_header.text = "BUILD STATS"
+	stat_header.add_theme_font_size_override("font_size", 18)
+	stat_header.add_theme_color_override("font_color", Color(0.78, 0.82, 0.90))
+	root.add_child(stat_header)
 
 	stats_label = RichTextLabel.new()
 	stats_label.bbcode_enabled = true
-	stats_label.fit_content = true
-	stats_label.custom_minimum_size = Vector2(500.0, 100.0)
+	stats_label.fit_content = false
+	stats_label.custom_minimum_size = Vector2(310.0, 255.0)
+	stats_label.add_theme_font_size_override("normal_font_size", 15)
 	root.add_child(stats_label)
 
 func _build_gear_panel() -> void:
 	gear_panel = PanelContainer.new()
-	gear_panel.position = Vector2(625.0, 92.0)
-	gear_panel.size = Vector2(605.0, 550.0)
+	gear_panel.position = Vector2(678.0, 90.0)
+	gear_panel.size = Vector2(584.0, 574.0)
+	gear_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
 	hud.add_child(gear_panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 8)
+	root.add_theme_constant_override("separation", 7)
 	gear_panel.add_child(root)
 
-	var title := Label.new()
-	title.text = "STASH / GEAR"
-	title.add_theme_font_size_override("font_size", 30)
-	root.add_child(title)
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 10)
+	root.add_child(header_row)
 
-	equipped_label = RichTextLabel.new()
-	equipped_label.bbcode_enabled = true
-	equipped_label.fit_content = true
-	equipped_label.custom_minimum_size = Vector2(550.0, 125.0)
-	root.add_child(equipped_label)
+	var title := _section_title("STASH")
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(title)
 
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	root.add_child(row)
-	row.add_child(_make_button("SELL ALL UNEQUIPPED", _sell_all_gear, Vector2(230.0, 38.0)))
-	row.add_child(_make_button("WIPE SAVE", _wipe_save, Vector2(130.0, 38.0)))
+	stash_count_label = _muted_label("")
+	stash_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	stash_count_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(stash_count_label)
+
+	var filter_row := HBoxContainer.new()
+	filter_row.add_theme_constant_override("separation", 5)
+	root.add_child(filter_row)
+
+	var filter_specs: Array[Dictionary] = [
+		{"key":"all", "label":"ALL"},
+		{"key":"weapon", "label":"WEAPONS"},
+		{"key":"armor", "label":"ARMOR"},
+		{"key":"charm", "label":"CHARMS"}
+	]
+	for spec: Dictionary in filter_specs:
+		var key: String = String(spec["key"])
+		var filter_button := _make_button(String(spec["label"]), _set_stash_filter.bind(key), Vector2(78.0, 32.0))
+		filter_button.add_theme_font_size_override("font_size", 12)
+		filter_buttons[key] = filter_button
+		filter_row.add_child(filter_button)
+
+	sort_button = _make_button("SORT: VALUE", _cycle_stash_sort, Vector2(135.0, 32.0))
+	sort_button.add_theme_font_size_override("font_size", 12)
+	filter_row.add_child(sort_button)
+
+	var content_row := HBoxContainer.new()
+	content_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_row.add_theme_constant_override("separation", 10)
+	root.add_child(content_row)
+
+	var list_panel := PanelContainer.new()
+	list_panel.custom_minimum_size = Vector2(310.0, 430.0)
+	list_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.020, 0.024, 0.034), Color(0.10, 0.12, 0.16), 1))
+	content_row.add_child(list_panel)
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(550.0, 320.0)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	root.add_child(scroll)
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list_panel.add_child(scroll)
 
 	inventory_list = VBoxContainer.new()
 	inventory_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inventory_list.add_theme_constant_override("separation", 6)
+	inventory_list.add_theme_constant_override("separation", 5)
 	scroll.add_child(inventory_list)
+
+	var inspector_panel := PanelContainer.new()
+	inspector_panel.custom_minimum_size = Vector2(230.0, 430.0)
+	inspector_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inspector_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.022, 0.027, 0.038), Color(0.12, 0.15, 0.20), 1))
+	content_row.add_child(inspector_panel)
+
+	var inspector_root := VBoxContainer.new()
+	inspector_root.add_theme_constant_override("separation", 8)
+	inspector_panel.add_child(inspector_root)
+
+	var inspect_header := Label.new()
+	inspect_header.text = "ITEM INSPECTOR"
+	inspect_header.add_theme_font_size_override("font_size", 16)
+	inspect_header.add_theme_color_override("font_color", Color(0.78, 0.82, 0.90))
+	inspector_root.add_child(inspect_header)
+
+	selected_item_label = RichTextLabel.new()
+	selected_item_label.bbcode_enabled = true
+	selected_item_label.fit_content = false
+	selected_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	selected_item_label.custom_minimum_size = Vector2(202.0, 300.0)
+	selected_item_label.add_theme_font_size_override("normal_font_size", 14)
+	inspector_root.add_child(selected_item_label)
+
+	selected_equip_button = _make_button("EQUIP SELECTED", _equip_selected_item, Vector2(202.0, 38.0))
+	inspector_root.add_child(selected_equip_button)
+
+	selected_sell_button = _make_button("SELL SELECTED", _sell_selected_item, Vector2(202.0, 38.0))
+	inspector_root.add_child(selected_sell_button)
+
+	var footer_row := HBoxContainer.new()
+	footer_row.add_theme_constant_override("separation", 8)
+	root.add_child(footer_row)
+	footer_row.add_child(_make_button("SELL FILTERED", _sell_filtered_gear, Vector2(150.0, 34.0)))
+	var wipe_button := _make_button("WIPE SAVE", _wipe_save, Vector2(105.0, 34.0))
+	wipe_button.add_theme_font_size_override("font_size", 11)
+	footer_row.add_child(wipe_button)
 
 func _build_decision_panel() -> void:
 	decision_panel = PanelContainer.new()
@@ -312,6 +478,7 @@ func _enter_hub() -> void:
 	decision_panel.visible = false
 	arena.visible = false
 	hub_panel.visible = true
+	character_panel.visible = true
 	gear_panel.visible = true
 	hp_bar.visible = false
 	run_label.visible = false
@@ -329,6 +496,7 @@ func _start_claim() -> void:
 	total_run_kills = 0
 	feed_lines.clear()
 	hub_panel.visible = false
+	character_panel.visible = false
 	gear_panel.visible = false
 	hp_bar.visible = true
 	run_label.visible = true
@@ -780,51 +948,200 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 	return text
 
 func _update_hub_ui() -> void:
-	claim_label.text = "[b]ABANDONED CLAIM[/b]\nMonster Density: [color=#ffd75d]+%d%%[/color]\nItem Quantity: [color=#8dd7ff]+%d%%[/color]\nCurrency Quantity: [color=#ffd75d]+%d%%[/color]\nElite Chance: [color=#ff9b4a]+%.1f%%[/color]" % [juice_density * 20, juice_quantity * 25, juice_currency * 25, 5.0 + float(juice_elite) * 3.5]
+	var invested: int = juice_density + juice_quantity + juice_currency + juice_elite
+	var risk: String = "LOW"
+	var risk_color: String = "#7de38f"
+	if invested >= 4:
+		risk = "SPICY"
+		risk_color = "#ffd45c"
+	if invested >= 9:
+		risk = "DANGEROUS"
+		risk_color = "#ff914d"
+	if invested >= 15:
+		risk = "RAT BRAIN"
+		risk_color = "#ff5d73"
+
+	claim_label.text = "[color=#8d96a6]NEXT CLAIM[/color]\n[b][font_size=22]ABANDONED CLAIM[/font_size][/b]\n\n[color=#8d96a6]SEALS AVAILABLE[/color]  [color=#63d8ff][b]%d[/b][/color]\n[color=#8d96a6]SEALS INVESTED[/color]   [b]%d[/b]\n[color=#8d96a6]RISK[/color]             [color=%s][b]%s[/b][/color]\n\nDensity [b]+%d%%[/b]\nItem Quantity [b]+%d%%[/b]\nCurrency Quantity [b]+%d%%[/b]\nElite Chance [b]+%.1f%%[/b]" % [stash_seals, invested, risk_color, risk, juice_density * 20, juice_quantity * 25, juice_currency * 25, float(juice_elite) * 3.5]
 
 	var stats: Dictionary = _calculate_player_stats()
-	stats_label.text = "[b]Current build[/b]   %s   •   Damage %.1f   •   %.2f base attacks/s   •   %.0f HP\nMove %.0f   •   Currency Find %.1f%%   •   Item Find %.1f%%" % [String(stats["weapon_type"]).capitalize(), float(stats["damage"]), float(stats["attack_speed"]), float(stats["max_hp"]), float(stats["move_speed"]), float(stats["currency_find"]), float(stats["item_find"])]
+	stats_label.text = "[color=#8d96a6][b]OFFENSE[/b][/color]\nWeapon Base   [b]%s[/b]\nDamage        [b]%.1f[/b]\nAttack Rate   [b]%.2f / sec[/b]\n\n[color=#8d96a6][b]SURVIVAL[/b][/color]\nMax HP        [b]%.0f[/b]\nMove Speed    [b]%.0f[/b]\n\n[color=#8d96a6][b]LOOT[/b][/color]\nCurrency Find [color=#f6d05f][b]%.1f%%[/b][/color]\nItem Find     [color=#8dd7ff][b]%.1f%%[/b][/color]" % [String(stats["weapon_type"]).capitalize(), float(stats["damage"]), float(stats["attack_speed"]), float(stats["max_hp"]), float(stats["move_speed"]), float(stats["currency_find"]), float(stats["item_find"])]
 
-	equipped_label.text = "[b]EQUIPPED[/b]\nWeapon: %s\nArmor: %s\nCharm: %s" % [_item_to_bbcode(equipped.get("weapon", {}) as Dictionary, true), _item_to_bbcode(equipped.get("armor", {}) as Dictionary, true), _item_to_bbcode(equipped.get("charm", {}) as Dictionary, true)]
+	equipped_label.text = "[color=#8d96a6]WEAPON[/color]\n%s\n\n[color=#8d96a6]ARMOR[/color]\n%s\n\n[color=#8d96a6]CHARM[/color]\n%s" % [_item_to_bbcode(equipped.get("weapon", {}) as Dictionary, true), _item_to_bbcode(equipped.get("armor", {}) as Dictionary, true), _item_to_bbcode(equipped.get("charm", {}) as Dictionary, true)]
+
 	_rebuild_inventory()
+	_refresh_selected_item()
+	_update_stash_controls()
 	_update_top_bar()
 
 func _rebuild_inventory() -> void:
-	for child in inventory_list.get_children():
+	for child: Node in inventory_list.get_children():
 		child.queue_free()
-	if stash_gear.is_empty():
+
+	var filtered_items: Array[Dictionary] = []
+	for item: Dictionary in stash_gear:
+		if stash_filter == "all" or String(item.get("slot", "")) == stash_filter:
+			filtered_items.append(item)
+
+	match stash_sort_mode:
+		"value":
+			filtered_items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("value", 0)) > int(b.get("value", 0)))
+		"rarity":
+			filtered_items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+				var rarity_a: int = _rarity_rank(String(a.get("rarity", "Common")))
+				var rarity_b: int = _rarity_rank(String(b.get("rarity", "Common")))
+				if rarity_a == rarity_b:
+					return int(a.get("value", 0)) > int(b.get("value", 0))
+				return rarity_a > rarity_b
+			)
+		"newest":
+			filtered_items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("id", 0)) > int(b.get("id", 0)))
+
+	stash_count_label.text = "%d shown  •  %d total" % [filtered_items.size(), stash_gear.size()]
+
+	if filtered_items.is_empty():
 		var empty_label := Label.new()
-		empty_label.text = "No unequipped gear. Go be a loot rat."
-		empty_label.add_theme_color_override("font_color", Color(0.55, 0.58, 0.64))
+		empty_label.text = "No items in this category."
+		empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty_label.add_theme_color_override("font_color", Color(0.48, 0.52, 0.60))
 		inventory_list.add_child(empty_label)
 		return
 
-	var sorted_items: Array[Dictionary] = stash_gear.duplicate(true)
-	sorted_items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("value", 0)) > int(b.get("value", 0)))
-	for item in sorted_items:
-		var card := PanelContainer.new()
-		card.custom_minimum_size = Vector2(530.0, 72.0)
-		inventory_list.add_child(card)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		card.add_child(row)
-		var text := RichTextLabel.new()
-		text.bbcode_enabled = true
-		text.fit_content = true
-		text.custom_minimum_size = Vector2(345.0, 66.0)
-		text.text = "[color=#8b93a3]%s[/color]  %s" % [String(item.get("slot", "gear")).to_upper(), _item_to_bbcode(item)]
-		row.add_child(text)
-		var equip_button := Button.new()
-		equip_button.text = "EQUIP"
-		equip_button.custom_minimum_size = Vector2(80.0, 42.0)
+	for item: Dictionary in filtered_items:
 		var item_id: int = int(item.get("id", -1))
-		equip_button.pressed.connect(_equip_item.bind(item_id))
-		row.add_child(equip_button)
-		var sell_button := Button.new()
-		sell_button.text = "SELL"
-		sell_button.custom_minimum_size = Vector2(72.0, 42.0)
-		sell_button.pressed.connect(_sell_item.bind(item_id))
-		row.add_child(sell_button)
+		var rarity: String = String(item.get("rarity", "Common"))
+		var slot: String = String(item.get("slot", "gear")).to_upper()
+		var name_value: String = String(item.get("name", "Item"))
+		var prefix: String = "▶ " if item_id == selected_stash_item_id else ""
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(276.0, 62.0)
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.text = "%s%s  •  %s\n   ~₵%d   %s" % [prefix, slot, rarity, int(item.get("value", 0)), name_value]
+		button.add_theme_font_size_override("font_size", 13)
+		button.add_theme_color_override("font_color", _rarity_color(rarity))
+		button.add_theme_color_override("font_hover_color", Color.WHITE)
+		button.pressed.connect(_select_stash_item.bind(item_id))
+		inventory_list.add_child(button)
+
+func _rarity_rank(rarity: String) -> int:
+	match rarity:
+		"Rare": return 3
+		"Magic": return 2
+		_: return 1
+
+func _rarity_color(rarity: String) -> Color:
+	match rarity:
+		"Rare": return Color(0.86, 0.44, 1.0)
+		"Magic": return Color(0.39, 0.68, 1.0)
+		_: return Color(0.82, 0.84, 0.88)
+
+func _set_stash_filter(filter_value: String) -> void:
+	stash_filter = filter_value
+	_rebuild_inventory()
+	_update_stash_controls()
+
+func _cycle_stash_sort() -> void:
+	match stash_sort_mode:
+		"value": stash_sort_mode = "rarity"
+		"rarity": stash_sort_mode = "newest"
+		_: stash_sort_mode = "value"
+	_rebuild_inventory()
+	_update_stash_controls()
+
+func _update_stash_controls() -> void:
+	for key_variant: Variant in filter_buttons.keys():
+		var key: String = String(key_variant)
+		var button_variant: Variant = filter_buttons.get(key)
+		if button_variant is Button:
+			(button_variant as Button).disabled = key == stash_filter
+	if sort_button != null:
+		match stash_sort_mode:
+			"rarity": sort_button.text = "SORT: RARITY"
+			"newest": sort_button.text = "SORT: NEWEST"
+			_: sort_button.text = "SORT: VALUE"
+
+func _select_stash_item(item_id: int) -> void:
+	selected_stash_item_id = item_id
+	_rebuild_inventory()
+	_refresh_selected_item()
+
+func _refresh_selected_item() -> void:
+	if selected_item_label == null:
+		return
+	var index: int = _find_stash_item_index(selected_stash_item_id)
+	if index < 0:
+		selected_stash_item_id = -1
+		selected_item_label.text = "[color=#737c8d]Select an item from the stash to inspect it and compare it against your equipped gear.[/color]"
+		selected_equip_button.disabled = true
+		selected_sell_button.disabled = true
+		return
+
+	var item: Dictionary = stash_gear[index]
+	var slot: String = String(item.get("slot", "charm"))
+	var current: Dictionary = equipped.get(slot, {}) as Dictionary
+	var current_name: String = String(current.get("name", "Empty"))
+	selected_item_label.text = "[color=#8d96a6]SELECTED[/color]\n%s\n\n[color=#8d96a6]CURRENT %s[/color]\n%s\n\n[color=#8d96a6]STAT CHANGE[/color]\n%s" % [_item_to_bbcode(item), slot.to_upper(), current_name, _comparison_bbcode(item, current)]
+	selected_equip_button.disabled = false
+	selected_sell_button.disabled = false
+
+func _comparison_bbcode(candidate: Dictionary, current: Dictionary) -> String:
+	var lines: Array[String] = []
+	if String(candidate.get("slot", "")) == "weapon":
+		var new_base: String = String(candidate.get("weapon_type", "repeater")).capitalize()
+		var old_base: String = String(current.get("weapon_type", "repeater")).capitalize()
+		if new_base != old_base:
+			lines.append("[color=#c8ced8]Base: %s → %s[/color]" % [old_base, new_base])
+
+	var stat_defs: Array[Dictionary] = [
+		{"key":"damage", "label":"Damage", "decimals":1},
+		{"key":"attack_speed", "label":"Attack Rate", "decimals":2},
+		{"key":"max_hp", "label":"Max HP", "decimals":0},
+		{"key":"move_speed", "label":"Move Speed", "decimals":0},
+		{"key":"currency_find", "label":"Currency Find", "decimals":1},
+		{"key":"item_find", "label":"Item Find", "decimals":1}
+	]
+	for stat_def: Dictionary in stat_defs:
+		var key: String = String(stat_def["key"])
+		var delta: float = float(candidate.get(key, 0.0)) - float(current.get(key, 0.0))
+		if absf(delta) < 0.005:
+			continue
+		var decimals: int = int(stat_def["decimals"])
+		var number_text: String
+		if decimals == 0:
+			number_text = "%+.0f" % delta
+		elif decimals == 2:
+			number_text = "%+.2f" % delta
+		else:
+			number_text = "%+.1f" % delta
+		var suffix: String = "%" if key == "currency_find" or key == "item_find" else ""
+		var color_hex: String = "#72df8b" if delta > 0.0 else "#ff6d79"
+		lines.append("[color=%s]%s  %s%s[/color]" % [color_hex, String(stat_def["label"]), number_text, suffix])
+
+	if lines.is_empty():
+		return "[color=#8d96a6]No numerical stat change.[/color]"
+	return "\n".join(PackedStringArray(lines))
+
+func _equip_selected_item() -> void:
+	if selected_stash_item_id >= 0:
+		_equip_item(selected_stash_item_id)
+
+func _sell_selected_item() -> void:
+	if selected_stash_item_id >= 0:
+		_sell_item(selected_stash_item_id)
+
+func _sell_filtered_gear() -> void:
+	var sale: int = 0
+	var kept: Array[Dictionary] = []
+	for item: Dictionary in stash_gear:
+		var matches_filter: bool = stash_filter == "all" or String(item.get("slot", "")) == stash_filter
+		if matches_filter:
+			sale += int(item.get("value", 0))
+		else:
+			kept.append(item)
+	stash_coins += sale
+	stash_gear = kept
+	selected_stash_item_id = -1
+	_update_hub_ui()
+	_save_game()
 
 func _equip_item(item_id: int) -> void:
 	var index: int = _find_stash_item_index(item_id)
@@ -837,6 +1154,7 @@ func _equip_item(item_id: int) -> void:
 	if not old_item.is_empty():
 		stash_gear.append(old_item.duplicate(true))
 	equipped[slot] = item.duplicate(true)
+	selected_stash_item_id = -1
 	_update_hub_ui()
 	_save_game()
 
@@ -847,6 +1165,7 @@ func _sell_item(item_id: int) -> void:
 	var item: Dictionary = stash_gear[index]
 	stash_coins += int(item.get("value", 0))
 	stash_gear.remove_at(index)
+	selected_stash_item_id = -1
 	_update_hub_ui()
 	_save_game()
 
@@ -856,6 +1175,7 @@ func _sell_all_gear() -> void:
 		sale += int(item.get("value", 0))
 	stash_coins += sale
 	stash_gear.clear()
+	selected_stash_item_id = -1
 	_update_hub_ui()
 	_save_game()
 
@@ -907,9 +1227,16 @@ func _clear_juice() -> void:
 func _update_top_bar() -> void:
 	if top_label == null:
 		return
-	top_label.text = "₵%d    ◈ %d Seals    NET WORTH ₵%d" % [stash_coins, stash_seals, _calculate_net_worth()]
+	coins_label.text = "COINS\n₵%d" % stash_coins
+	seals_label.text = "SEALS\n◈ %d" % stash_seals
+	networth_label.text = "NET WORTH\n₵%d" % _calculate_net_worth()
+
 	if state == "run":
-		run_label.text = "D%d  ROOM %d/%d %s  •  ENEMIES %d  •  UNSECURED ₵%d" % [depth, room_index, rooms_total, current_room_type, alive_enemies, _current_run_value()]
+		top_label.text = "CLAIM"
+		run_label.text = "D%d  •  ROOM %d/%d  %s  •  %d ENEMIES  •  UNSECURED ₵%d" % [depth, room_index, rooms_total, current_room_type, alive_enemies, _current_run_value()]
+	else:
+		top_label.text = "LOOT RAT"
+		run_label.text = ""
 
 func _add_feed(text_value: String) -> void:
 	feed_lines.push_front(text_value)
@@ -986,6 +1313,9 @@ func _wipe_save() -> void:
 	stash_gear.clear()
 	equipped = {"weapon": {}, "armor": {}, "charm": {}}
 	next_item_id = 1
+	selected_stash_item_id = -1
+	stash_filter = "all"
+	stash_sort_mode = "value"
 	_ensure_starter_gear()
 	_update_hub_ui()
 	_save_game()
