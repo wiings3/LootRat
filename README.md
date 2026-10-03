@@ -4,6 +4,22 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.3 — Itemization
+- Gear now has meaningful **base types** with built-in implicit stats.
+- Four weapon bases retain distinct firing behavior and now have different implicit bonuses.
+- Armor bases specialize into health, movement, or loot finding.
+- Charm bases specialize into currency, item finding, damage, or movement.
+- Item rarity now controls affix count:
+  - **Common:** base implicit only
+  - **Magic:** 1–2 affixes
+  - **Rare:** 3 affixes
+  - **Gilded:** 4 affixes, including a guaranteed loot-oriented affix
+- Affixes now have visible **T5 → T1 tiers**.
+- Higher Claim depths unlock stronger affix tiers.
+- Items display item level, base type, implicit, affix tiers, and estimated value.
+- Gilded drops have gold presentation and a distinct loot-feed callout.
+- Existing saves are migrated into the new item format instead of being invalidated.
+
 ## v0.25 — Hub Overhaul
 - New three-column hub: **Claim Prep / Loadout & Stats / Stash**.
 - Coins, Seals, and Net Worth are now persistent top-level readouts.

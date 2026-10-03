@@ -689,7 +689,11 @@ func _on_loot_collected(pickup: LootPickup) -> void:
 			_add_feed("JACKPOT!  +₵%d" % pickup.amount)
 		"gear":
 			run_gear.append(pickup.gear.duplicate(true))
-			_add_feed("GEAR: %s  (~₵%d)" % [String(pickup.gear.get("name", "Item")), int(pickup.gear.get("value", 0))])
+			var drop_rarity: String = String(pickup.gear.get("rarity", "Common"))
+			if drop_rarity == "Gilded":
+				_add_feed("GILDED DROP!  %s  (~₵%d)" % [String(pickup.gear.get("name", "Item")), int(pickup.gear.get("value", 0))])
+			else:
+				_add_feed("%s: %s  (~₵%d)" % [drop_rarity.to_upper(), String(pickup.gear.get("name", "Item")), int(pickup.gear.get("value", 0))])
 
 func _open_floor_clear() -> void:
 	decision_open = true
@@ -816,136 +820,372 @@ func _calculate_player_stats() -> Dictionary:
 	return stats
 
 func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
-	var slot_roll: int = rng.randi_range(0, 2)
 	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
-	var slot: String = gear_slots[slot_roll]
-	var rarity_roll: float = rng.randf() + (0.16 if from_elite else 0.0) + float(item_depth - 1) * 0.012
-	var rarity: String = "Common"
-	var affixes: int = 1
-	if rarity_roll > 0.90:
-		rarity = "Rare"
-		affixes = 3
-	elif rarity_roll > 0.58:
-		rarity = "Magic"
-		affixes = 2
+	var slot: String = gear_slots[rng.randi_range(0, gear_slots.size() - 1)]
+	var item_level: int = maxi(1, item_depth + (1 if from_elite else 0))
+	var rarity: String = _roll_item_rarity(item_level, from_elite)
+	var base: Dictionary = _roll_item_base(slot)
 
 	var item: Dictionary = {
 		"id": next_item_id,
 		"slot": slot,
 		"rarity": rarity,
 		"depth": item_depth,
+		"item_level": item_level,
+		"base_name": String(base.get("name", "Gear")),
+		"weapon_type": String(base.get("weapon_type", "")),
 		"damage": 0.0,
 		"attack_speed": 0.0,
 		"max_hp": 0.0,
 		"move_speed": 0.0,
 		"currency_find": 0.0,
 		"item_find": 0.0,
-		"weapon_type": ""
+		"implicit": {},
+		"affixes": []
 	}
 	next_item_id += 1
 
-	var power: float = 1.0 + float(item_depth - 1) * 0.16
-	var used: Array[String] = []
-	for _i in range(affixes):
-		var candidates: Array[String] = _affix_candidates(slot)
+	var implicit_stat: String = String(base.get("implicit_stat", ""))
+	var implicit_value: float = float(base.get("implicit_value", 0.0))
+	if not implicit_stat.is_empty() and implicit_value != 0.0:
+		_apply_item_stat(item, implicit_stat, implicit_value)
+		item["implicit"] = {
+			"stat": implicit_stat,
+			"value": implicit_value,
+			"label": _stat_label(implicit_stat)
+		}
+
+	var affix_count: int = 0
+	match rarity:
+		"Magic":
+			affix_count = rng.randi_range(1, 2)
+		"Rare":
+			affix_count = 3
+		"Gilded":
+			affix_count = 4
+
+	var candidates: Array[String] = _affix_candidates(slot)
+	var used_stats: Array[String] = []
+	var affixes: Array[Dictionary] = []
+
+	# Gilded items always carry one greed-oriented affix so they are chase loot,
+	# not merely a fourth random stat.
+	if rarity == "Gilded":
+		var greed_stat: String = "currency_find" if rng.randf() < 0.55 else "item_find"
+		var greed_tier: int = maxi(1, _best_affix_tier(item_level) - 1)
+		var greed_value: float = _roll_affix_value(greed_stat, greed_tier)
+		_apply_item_stat(item, greed_stat, greed_value)
+		affixes.append(_make_affix_record(greed_stat, greed_tier, greed_value))
+		used_stats.append(greed_stat)
+
+	while affixes.size() < affix_count:
 		var available: Array[String] = []
-		for candidate in candidates:
-			if not used.has(candidate):
+		for candidate: String in candidates:
+			if not used_stats.has(candidate):
 				available.append(candidate)
 		if available.is_empty():
 			break
-		var affix: String = available[rng.randi_range(0, available.size() - 1)]
-		used.append(affix)
-		match affix:
-			"damage": item[affix] = snappedf(rng.randf_range(4.0, 10.0) * power, 0.1)
-			"attack_speed": item[affix] = snappedf(rng.randf_range(0.25, 0.75) * power, 0.01)
-			"max_hp": item[affix] = snappedf(rng.randf_range(12.0, 30.0) * power, 1.0)
-			"move_speed": item[affix] = snappedf(rng.randf_range(8.0, 22.0) * power, 1.0)
-			"currency_find": item[affix] = snappedf(rng.randf_range(5.0, 14.0) * power, 0.1)
-			"item_find": item[affix] = snappedf(rng.randf_range(5.0, 14.0) * power, 0.1)
+		var stat: String = available[rng.randi_range(0, available.size() - 1)]
+		var tier: int = _roll_affix_tier(item_level)
+		var value: float = _roll_affix_value(stat, tier)
+		_apply_item_stat(item, stat, value)
+		affixes.append(_make_affix_record(stat, tier, value))
+		used_stats.append(stat)
 
-	if slot == "weapon":
-		item["weapon_type"] = _random_weapon_type()
-		item["name"] = _make_weapon_name(String(item["weapon_type"]), rarity)
-	else:
-		item["name"] = _make_item_name(slot, rarity)
+	item["affixes"] = affixes
+	item["name"] = _make_generated_item_name(item)
 	item["value"] = _item_value(item)
 	return item
 
+func _roll_item_rarity(item_level: int, from_elite: bool) -> String:
+	var gilded_chance: float = 0.004 + float(item_level) * 0.001
+	var rare_chance: float = 0.10 + float(item_level) * 0.008
+	var magic_chance: float = 0.38 + float(item_level) * 0.006
+	if from_elite:
+		gilded_chance += 0.018
+		rare_chance += 0.18
+		magic_chance += 0.12
+
+	gilded_chance = minf(gilded_chance, 0.08)
+	rare_chance = minf(rare_chance, 0.42)
+	magic_chance = minf(magic_chance, 0.55)
+
+	var roll: float = rng.randf()
+	if roll < gilded_chance:
+		return "Gilded"
+	if roll < gilded_chance + rare_chance:
+		return "Rare"
+	if roll < gilded_chance + rare_chance + magic_chance:
+		return "Magic"
+	return "Common"
+
+func _roll_item_base(slot: String) -> Dictionary:
+	var bases: Array[Dictionary] = []
+	match slot:
+		"weapon":
+			bases = [
+				{"name":"Scrap Repeater", "weapon_type":"repeater", "implicit_stat":"damage", "implicit_value":2.5},
+				{"name":"Sawed Scattergun", "weapon_type":"scattergun", "implicit_stat":"damage", "implicit_value":4.0},
+				{"name":"Heavy Piercer", "weapon_type":"piercer", "implicit_stat":"damage", "implicit_value":6.0},
+				{"name":"Bullet Hose", "weapon_type":"sprayer", "implicit_stat":"attack_speed", "implicit_value":0.35}
+			]
+		"armor":
+			bases = [
+				{"name":"Padded Rags", "weapon_type":"", "implicit_stat":"max_hp", "implicit_value":14.0},
+				{"name":"Runner Jacket", "weapon_type":"", "implicit_stat":"move_speed", "implicit_value":12.0},
+				{"name":"Reinforced Vest", "weapon_type":"", "implicit_stat":"max_hp", "implicit_value":24.0},
+				{"name":"Scavenger Coat", "weapon_type":"", "implicit_stat":"item_find", "implicit_value":5.0}
+			]
+		_:
+			bases = [
+				{"name":"Bent Lucky Coin", "weapon_type":"", "implicit_stat":"currency_find", "implicit_value":4.0},
+				{"name":"Finder's Eye", "weapon_type":"", "implicit_stat":"item_find", "implicit_value":4.0},
+				{"name":"Rat Fang", "weapon_type":"", "implicit_stat":"damage", "implicit_value":2.5},
+				{"name":"Runner Token", "weapon_type":"", "implicit_stat":"move_speed", "implicit_value":8.0}
+			]
+	return bases[rng.randi_range(0, bases.size() - 1)].duplicate(true)
+
 func _affix_candidates(slot: String) -> Array[String]:
 	match slot:
-		"weapon": return ["damage", "attack_speed", "currency_find", "item_find"]
-		"armor": return ["max_hp", "move_speed", "currency_find", "item_find"]
-		_: return ["damage", "max_hp", "move_speed", "currency_find", "item_find"]
+		"weapon":
+			return ["damage", "attack_speed", "currency_find", "item_find"]
+		"armor":
+			return ["max_hp", "move_speed", "currency_find", "item_find"]
+		_:
+			return ["damage", "max_hp", "move_speed", "currency_find", "item_find"]
 
-func _random_weapon_type() -> String:
-	var weapon_types: Array[String] = ["repeater", "scattergun", "piercer", "sprayer"]
-	return weapon_types[rng.randi_range(0, weapon_types.size() - 1)]
+func _best_affix_tier(item_level: int) -> int:
+	if item_level >= 12:
+		return 1
+	if item_level >= 8:
+		return 2
+	if item_level >= 5:
+		return 3
+	if item_level >= 3:
+		return 4
+	return 5
 
-func _make_weapon_name(weapon_type: String, rarity: String) -> String:
-	var prefixes: Array[String] = ["Greedy", "Filthy", "Lucky", "Gilded", "Rattling", "Stolen", "Crooked", "Shiny"]
-	var base_name: String
-	match weapon_type:
-		"scattergun": base_name = "Scattergun"
-		"piercer": base_name = "Piercer"
-		"sprayer": base_name = "Sprayer"
-		_: base_name = "Repeater"
-	if rarity == "Common":
-		return base_name
-	return "%s %s" % [prefixes[rng.randi_range(0, prefixes.size() - 1)], base_name]
+func _roll_affix_tier(item_level: int) -> int:
+	var best: int = _best_affix_tier(item_level)
+	var roll: float = rng.randf()
+	if roll > 0.93:
+		return mini(5, best + 2)
+	if roll > 0.70:
+		return mini(5, best + 1)
+	return best
 
-func _make_item_name(slot: String, rarity: String) -> String:
-	var prefixes: Array[String] = ["Greedy", "Filthy", "Lucky", "Gilded", "Rattling", "Stolen", "Crooked", "Shiny"]
-	var weapon_names: Array[String] = ["Blaster", "Repeater", "Hand Cannon", "Scrapgun", "Coinspitter"]
-	var armor_names: Array[String] = ["Jacket", "Plate", "Vest", "Rags", "Carapace"]
-	var charm_names: Array[String] = ["Idol", "Rat Tail", "Token", "Locket", "Trinket"]
-	var nouns: Array[String]
-	match slot:
-		"weapon": nouns = weapon_names
-		"armor": nouns = armor_names
-		_: nouns = charm_names
-	var name_value: String = nouns[rng.randi_range(0, nouns.size() - 1)]
-	if rarity == "Common":
-		return name_value
-	return "%s %s" % [prefixes[rng.randi_range(0, prefixes.size() - 1)], name_value]
+func _roll_affix_value(stat: String, tier: int) -> float:
+	var low: float = 0.0
+	var high: float = 0.0
+	match stat:
+		"damage":
+			match tier:
+				1: low = 17.0; high = 25.0
+				2: low = 12.0; high = 18.0
+				3: low = 8.0; high = 13.0
+				4: low = 5.0; high = 9.0
+				_: low = 3.0; high = 6.0
+		"attack_speed":
+			match tier:
+				1: low = 0.85; high = 1.15
+				2: low = 0.60; high = 0.90
+				3: low = 0.40; high = 0.65
+				4: low = 0.25; high = 0.45
+				_: low = 0.15; high = 0.30
+		"max_hp":
+			match tier:
+				1: low = 60.0; high = 90.0
+				2: low = 42.0; high = 65.0
+				3: low = 28.0; high = 45.0
+				4: low = 18.0; high = 32.0
+				_: low = 10.0; high = 20.0
+		"move_speed":
+			match tier:
+				1: low = 23.0; high = 32.0
+				2: low = 17.0; high = 24.0
+				3: low = 12.0; high = 18.0
+				4: low = 8.0; high = 14.0
+				_: low = 5.0; high = 10.0
+		_:
+			match tier:
+				1: low = 21.0; high = 30.0
+				2: low = 15.0; high = 22.0
+				3: low = 10.0; high = 16.0
+				4: low = 7.0; high = 12.0
+				_: low = 4.0; high = 8.0
+
+	var value: float = rng.randf_range(low, high)
+	if stat == "attack_speed":
+		return snappedf(value, 0.01)
+	if stat == "max_hp" or stat == "move_speed":
+		return snappedf(value, 1.0)
+	return snappedf(value, 0.1)
+
+func _make_affix_record(stat: String, tier: int, value: float) -> Dictionary:
+	return {
+		"stat": stat,
+		"tier": tier,
+		"value": value,
+		"label": _stat_label(stat)
+	}
+
+func _apply_item_stat(item: Dictionary, stat: String, value: float) -> void:
+	item[stat] = float(item.get(stat, 0.0)) + value
+
+func _stat_label(stat: String) -> String:
+	match stat:
+		"damage": return "Damage"
+		"attack_speed": return "Attack Rate"
+		"max_hp": return "Max HP"
+		"move_speed": return "Move Speed"
+		"currency_find": return "Currency Find"
+		"item_find": return "Item Find"
+		_: return stat.capitalize()
+
+func _format_stat_value(stat: String, value: float, include_plus: bool = true) -> String:
+	var prefix: String = "+" if include_plus and value >= 0.0 else ""
+	match stat:
+		"attack_speed":
+			return "%s%.2f Attack Rate" % [prefix, value]
+		"currency_find", "item_find":
+			return "%s%.1f%% %s" % [prefix, value, _stat_label(stat)]
+		"max_hp", "move_speed":
+			return "%s%.0f %s" % [prefix, value, _stat_label(stat)]
+		_:
+			return "%s%.1f %s" % [prefix, value, _stat_label(stat)]
+
+func _make_generated_item_name(item: Dictionary) -> String:
+	var rarity: String = String(item.get("rarity", "Common"))
+	var base_name: String = String(item.get("base_name", "Gear"))
+	var prefixes: Array[String] = ["Greedy", "Filthy", "Lucky", "Gilded", "Rattling", "Stolen", "Crooked", "Shiny", "Hoarded", "Gnawed"]
+	var suffixes: Array[String] = ["of Plenty", "of Hunger", "of the Hoard", "of Fortune", "of Greed", "of Scavenging"]
+	var gilded_titles: Array[String] = ["Rat King's", "Vaultborn", "Midas-Touched", "Crownmarked", "Hoardlord's"]
+
+	match rarity:
+		"Magic":
+			return "%s %s" % [prefixes[rng.randi_range(0, prefixes.size() - 1)], base_name]
+		"Rare":
+			return "%s %s %s" % [prefixes[rng.randi_range(0, prefixes.size() - 1)], base_name, suffixes[rng.randi_range(0, suffixes.size() - 1)]]
+		"Gilded":
+			return "%s %s" % [gilded_titles[rng.randi_range(0, gilded_titles.size() - 1)], base_name]
+		_:
+			return base_name
 
 func _item_value(item: Dictionary) -> int:
-	var score: float = 25.0 + float(item.get("depth", 1)) * 18.0
-	score += float(item.get("damage", 0.0)) * 19.0
-	score += float(item.get("attack_speed", 0.0)) * 170.0
-	score += float(item.get("max_hp", 0.0)) * 4.5
-	score += float(item.get("move_speed", 0.0)) * 5.0
-	score += float(item.get("currency_find", 0.0)) * 13.0
-	score += float(item.get("item_find", 0.0)) * 13.0
+	var item_level: int = int(item.get("item_level", item.get("depth", 1)))
+	var score: float = 35.0 + float(item_level) * 24.0
+	score += float(item.get("damage", 0.0)) * 20.0
+	score += float(item.get("attack_speed", 0.0)) * 190.0
+	score += float(item.get("max_hp", 0.0)) * 4.8
+	score += float(item.get("move_speed", 0.0)) * 5.5
+	score += float(item.get("currency_find", 0.0)) * 15.0
+	score += float(item.get("item_find", 0.0)) * 15.0
+
 	var rarity: String = String(item.get("rarity", "Common"))
-	if rarity == "Magic":
-		score *= 1.25
-	if rarity == "Rare":
-		score *= 1.65
-	return maxi(20, int(round(score)))
+	match rarity:
+		"Magic": score *= 1.25
+		"Rare": score *= 1.65
+		"Gilded": score *= 2.80
+	return maxi(25, int(round(score)))
 
 func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 	if item.is_empty():
 		return "[color=#7f8794]Empty[/color]"
+
 	var rarity: String = String(item.get("rarity", "Common"))
-	var color_hex: String = "#cfd4dc"
-	if rarity == "Magic": color_hex = "#63a9ff"
-	if rarity == "Rare": color_hex = "#d96cff"
-	var text: String = "[color=%s][b]%s[/b][/color]  [color=#f6d05f]~₵%d[/color]" % [color_hex, String(item.get("name", "Item")), int(item.get("value", 0))]
+	var color_hex: String = _rarity_color_hex(rarity)
+	var name_value: String = String(item.get("name", "Item"))
+	var value: int = int(item.get("value", 0))
+	var item_level: int = int(item.get("item_level", item.get("depth", 1)))
+	var base_name: String = String(item.get("base_name", "Legacy Gear"))
+	var text: String = "[color=%s][b]%s[/b][/color]  [color=#f6d05f]~₵%d[/color]" % [color_hex, name_value, value]
+
 	if compact:
-		return text
-	var stats: Array[String] = []
-	if String(item.get("slot", "")) == "weapon": stats.append("Base: %s" % String(item.get("weapon_type", "repeater")).capitalize())
-	if float(item.get("damage", 0.0)) > 0.0: stats.append("+%.1f Damage" % float(item.get("damage", 0.0)))
-	if float(item.get("attack_speed", 0.0)) > 0.0: stats.append("+%.2f Attacks/sec" % float(item.get("attack_speed", 0.0)))
-	if float(item.get("max_hp", 0.0)) > 0.0: stats.append("+%.0f Max HP" % float(item.get("max_hp", 0.0)))
-	if float(item.get("move_speed", 0.0)) > 0.0: stats.append("+%.0f Move Speed" % float(item.get("move_speed", 0.0)))
-	if float(item.get("currency_find", 0.0)) > 0.0: stats.append("+%.1f%% Currency Find" % float(item.get("currency_find", 0.0)))
-	if float(item.get("item_find", 0.0)) > 0.0: stats.append("+%.1f%% Item Find" % float(item.get("item_find", 0.0)))
-	if not stats.is_empty():
-		var packed_stats := PackedStringArray(stats)
-		text += "\n[color=#b6bdc9]%s[/color]" % "  •  ".join(packed_stats)
+		return text + "\n[color=#737c8d]%s  •  ilvl %d[/color]" % [base_name, item_level]
+
+	text += "\n[color=#737c8d]%s  •  %s  •  ilvl %d[/color]" % [rarity, base_name, item_level]
+	if String(item.get("slot", "")) == "weapon":
+		text += "\n[color=#8d96a6]Weapon: %s[/color]" % String(item.get("weapon_type", "repeater")).capitalize()
+
+	var implicit_variant: Variant = item.get("implicit", {})
+	if typeof(implicit_variant) == TYPE_DICTIONARY:
+		var implicit: Dictionary = implicit_variant as Dictionary
+		if not implicit.is_empty():
+			var implicit_stat: String = String(implicit.get("stat", ""))
+			var implicit_value: float = float(implicit.get("value", 0.0))
+			text += "\n[color=#d4bd70]Implicit  %s[/color]" % _format_stat_value(implicit_stat, implicit_value)
+
+	var affixes_variant: Variant = item.get("affixes", [])
+	if typeof(affixes_variant) == TYPE_ARRAY:
+		var affix_array: Array = affixes_variant as Array
+		for affix_variant: Variant in affix_array:
+			if typeof(affix_variant) != TYPE_DICTIONARY:
+				continue
+			var affix: Dictionary = affix_variant as Dictionary
+			var affix_stat: String = String(affix.get("stat", ""))
+			var affix_value: float = float(affix.get("value", 0.0))
+			var tier: int = int(affix.get("tier", 5))
+			text += "\n[color=#6f7888][T%d][/color] %s" % [tier, _format_stat_value(affix_stat, affix_value)]
+
 	return text
+
+func _rarity_color_hex(rarity: String) -> String:
+	match rarity:
+		"Gilded": return "#ffd34d"
+		"Rare": return "#d96cff"
+		"Magic": return "#63a9ff"
+		_: return "#cfd4dc"
+
+func _normalize_item(raw_item: Dictionary) -> Dictionary:
+	var item: Dictionary = raw_item.duplicate(true)
+	if not item.has("item_level"):
+		item["item_level"] = maxi(1, int(item.get("depth", 1)))
+	if not item.has("base_name"):
+		item["base_name"] = String(item.get("name", "Legacy Gear"))
+	if not item.has("weapon_type"):
+		item["weapon_type"] = "repeater" if String(item.get("slot", "")) == "weapon" else ""
+	if not item.has("implicit"):
+		item["implicit"] = {}
+	if not item.has("affixes"):
+		var legacy_affixes: Array[Dictionary] = []
+		var legacy_stats: Array[String] = ["damage", "attack_speed", "max_hp", "move_speed", "currency_find", "item_find"]
+		for stat: String in legacy_stats:
+			var legacy_value: float = float(item.get(stat, 0.0))
+			if legacy_value > 0.0:
+				legacy_affixes.append(_make_affix_record(stat, 5, legacy_value))
+		item["affixes"] = legacy_affixes
+	return item
+
+func _make_starter_item(slot: String) -> Dictionary:
+	var item: Dictionary
+	match slot:
+		"weapon":
+			item = {
+				"id":next_item_id, "slot":"weapon", "rarity":"Common", "name":"Rusty Repeater",
+				"base_name":"Scrap Repeater", "weapon_type":"repeater", "depth":0, "item_level":1,
+				"damage":3.0, "attack_speed":0.0, "max_hp":0.0, "move_speed":0.0,
+				"currency_find":0.0, "item_find":0.0,
+				"implicit":{"stat":"damage", "value":3.0, "label":"Damage"}, "affixes":[]
+			}
+		"armor":
+			item = {
+				"id":next_item_id, "slot":"armor", "rarity":"Common", "name":"Padded Rags",
+				"base_name":"Padded Rags", "weapon_type":"", "depth":0, "item_level":1,
+				"damage":0.0, "attack_speed":0.0, "max_hp":12.0, "move_speed":0.0,
+				"currency_find":0.0, "item_find":0.0,
+				"implicit":{"stat":"max_hp", "value":12.0, "label":"Max HP"}, "affixes":[]
+			}
+		_:
+			item = {
+				"id":next_item_id, "slot":"charm", "rarity":"Common", "name":"Bent Lucky Coin",
+				"base_name":"Bent Lucky Coin", "weapon_type":"", "depth":0, "item_level":1,
+				"damage":0.0, "attack_speed":0.0, "max_hp":0.0, "move_speed":0.0,
+				"currency_find":3.0, "item_find":0.0,
+				"implicit":{"stat":"currency_find", "value":3.0, "label":"Currency Find"}, "affixes":[]
+			}
+	next_item_id += 1
+	item["value"] = _item_value(item)
+	return item
 
 func _update_hub_ui() -> void:
 	var invested: int = juice_density + juice_quantity + juice_currency + juice_elite
@@ -1024,12 +1264,14 @@ func _rebuild_inventory() -> void:
 
 func _rarity_rank(rarity: String) -> int:
 	match rarity:
+		"Gilded": return 4
 		"Rare": return 3
 		"Magic": return 2
 		_: return 1
 
 func _rarity_color(rarity: String) -> Color:
 	match rarity:
+		"Gilded": return Color(1.0, 0.82, 0.28)
 		"Rare": return Color(0.86, 0.44, 1.0)
 		"Magic": return Color(0.39, 0.68, 1.0)
 		_: return Color(0.82, 0.84, 0.88)
@@ -1256,14 +1498,11 @@ func _clear_runtime_nodes() -> void:
 
 func _ensure_starter_gear() -> void:
 	if (equipped.get("weapon", {}) as Dictionary).is_empty():
-		equipped["weapon"] = {"id": next_item_id, "slot":"weapon", "rarity":"Common", "name":"Rusty Repeater", "weapon_type":"repeater", "depth":0, "damage":3.0, "attack_speed":0.0, "max_hp":0.0, "move_speed":0.0, "currency_find":0.0, "item_find":0.0, "value":70}
-		next_item_id += 1
+		equipped["weapon"] = _make_starter_item("weapon")
 	if (equipped.get("armor", {}) as Dictionary).is_empty():
-		equipped["armor"] = {"id": next_item_id, "slot":"armor", "rarity":"Common", "name":"Padded Rags", "depth":0, "damage":0.0, "attack_speed":0.0, "max_hp":12.0, "move_speed":0.0, "currency_find":0.0, "item_find":0.0, "value":65}
-		next_item_id += 1
+		equipped["armor"] = _make_starter_item("armor")
 	if (equipped.get("charm", {}) as Dictionary).is_empty():
-		equipped["charm"] = {"id": next_item_id, "slot":"charm", "rarity":"Common", "name":"Bent Lucky Coin", "depth":0, "damage":0.0, "attack_speed":0.0, "max_hp":0.0, "move_speed":0.0, "currency_find":3.0, "item_find":3.0, "value":85}
-		next_item_id += 1
+		equipped["charm"] = _make_starter_item("charm")
 
 func _save_game() -> void:
 	var data: Dictionary = {
@@ -1295,7 +1534,7 @@ func _load_save() -> void:
 		var loaded_gear: Array = gear_variant as Array
 		for entry: Variant in loaded_gear:
 			if typeof(entry) == TYPE_DICTIONARY:
-				stash_gear.append((entry as Dictionary).duplicate(true))
+				stash_gear.append(_normalize_item(entry as Dictionary))
 	var equipped_variant: Variant = data.get("equipped", {})
 	if typeof(equipped_variant) == TYPE_DICTIONARY:
 		var loaded_equipped: Dictionary = equipped_variant as Dictionary
@@ -1303,7 +1542,7 @@ func _load_save() -> void:
 		for slot_name: String in gear_slots:
 			var item_variant: Variant = loaded_equipped.get(slot_name, {})
 			if typeof(item_variant) == TYPE_DICTIONARY:
-				equipped[slot_name] = (item_variant as Dictionary).duplicate(true)
+				equipped[slot_name] = _normalize_item(item_variant as Dictionary)
 
 func _wipe_save() -> void:
 	if FileAccess.file_exists(SAVE_PATH):

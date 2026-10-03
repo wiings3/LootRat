@@ -64,6 +64,9 @@ func _build_ground_label() -> void:
 				text_color = Color(0.39, 0.66, 1.0)
 			elif rarity == "Rare":
 				text_color = Color(0.85, 0.42, 1.0)
+			elif rarity == "Gilded":
+				text_color = Color(1.0, 0.82, 0.20)
+				label.add_theme_font_size_override("font_size", 17)
 			label.add_theme_color_override("font_color", text_color)
 	add_child(label)
 
@@ -89,8 +92,16 @@ func _draw() -> void:
 		"seal":
 			draw_colored_polygon(PackedVector2Array([Vector2(0,-10), Vector2(9,0), Vector2(0,10), Vector2(-9,0)]), Color(0.25, 0.85, 1.0))
 		"gear":
-			draw_circle(Vector2.ZERO, 15.0, Color(0.85, 0.32, 1.0, 0.13))
-			draw_colored_polygon(PackedVector2Array([Vector2(0,-11), Vector2(10,-3), Vector2(6,10), Vector2(-6,10), Vector2(-10,-3)]), Color(0.85, 0.32, 1.0))
+			var rarity: String = String(gear.get("rarity", "Common"))
+			var gear_color := Color(0.82, 0.84, 0.88)
+			if rarity == "Magic":
+				gear_color = Color(0.39, 0.66, 1.0)
+			elif rarity == "Rare":
+				gear_color = Color(0.85, 0.32, 1.0)
+			elif rarity == "Gilded":
+				gear_color = Color(1.0, 0.75, 0.10)
+			draw_circle(Vector2.ZERO, 15.0 if rarity != "Gilded" else 20.0, Color(gear_color.r, gear_color.g, gear_color.b, 0.16))
+			draw_colored_polygon(PackedVector2Array([Vector2(0,-11), Vector2(10,-3), Vector2(6,10), Vector2(-6,10), Vector2(-10,-3)]), gear_color)
 		"jackpot":
 			draw_circle(Vector2.ZERO, 22.0, Color(1.0, 0.75, 0.10, 0.16))
 			draw_colored_polygon(PackedVector2Array([Vector2(0,-14), Vector2(13,0), Vector2(0,14), Vector2(-13,0)]), Color(1.0, 0.72, 0.08))
