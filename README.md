@@ -4,6 +4,21 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.32 — Mechanical Affixes
+Items now change gameplay, not just numbers. Mechanical affixes are **hard-gated by Claim Tier**, so distinct upgrades do not bypass the slow progression curve.
+
+- **T1:** Point Blank, Heavy Rounds, Quickstep, Adrenaline Lining, Magnet Heart, Field Medic.
+- **T2:** Split Chamber, Bore Rounds, Second Wind, Hoarder's Bargain.
+- **T3:** Ricochet, Kill Frenzy, Armored Greed, Treasure Scent.
+- **T4:** Explosive Rounds, Glass Rat, Elite Tax.
+- **T5:** King's Barrage, Dead Man's Insurance, Hoarder's Curse, Double Drop.
+- Common items remain simple.
+- Magic items get **1 mechanic + 1 stat affix**.
+- Rare items get **1 mechanic + 2 stat affixes**.
+- Gilded items get **2 mechanics + 3 stat affixes**, with the first mechanic biased toward late-tier effects.
+- Existing gear remains compatible and simply has no mechanical affix until replaced.
+- Mechanical affixes add only modest vendor value so stronger loot does not instantly explode the Coin economy.
+
 ## v0.31 — Claim Tier Progression
 - Added persistent **Claim Tiers T1–T5**.
 - Claim Tier is now the hard gate for loot progression; descending deeply cannot bypass it.

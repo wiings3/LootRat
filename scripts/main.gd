@@ -553,12 +553,15 @@ func _begin_room() -> void:
 func _choose_room_type() -> String:
 	if room_index >= rooms_total:
 		return "BOSS"
+	var treasure_chance: float = 0.16
+	if is_instance_valid(player):
+		treasure_chance += player.treasure_room_bonus
 	var roll: float = rng.randf()
-	if roll < 0.16:
+	if roll < treasure_chance:
 		return "TREASURE"
-	if roll < 0.34:
+	if roll < treasure_chance + 0.18:
 		return "ELITE"
-	if roll < 0.53:
+	if roll < treasure_chance + 0.37:
 		return "SWARM"
 	return "PACK"
 
@@ -633,6 +636,8 @@ func _on_enemy_killed(enemy: LootEnemy) -> void:
 	alive_enemies = maxi(0, alive_enemies - 1)
 	floor_kills += 1
 	total_run_kills += 1
+	if is_instance_valid(player):
+		player.register_kill()
 	_spawn_loot_burst(enemy.global_position, enemy.reward_scale, enemy.is_elite)
 	if alive_enemies <= 0:
 		room_clear_delay = 0.35
@@ -641,6 +646,10 @@ func _spawn_loot_burst(position_value: Vector2, reward_scale: float, elite: bool
 	if not is_instance_valid(player):
 		return
 	var currency_mult: float = _run_currency_multiplier() * (1.0 + player.currency_find / 100.0)
+	if elite:
+		currency_mult *= 1.0 + player.elite_currency_bonus
+	else:
+		currency_mult *= maxf(0.10, 1.0 - player.normal_currency_penalty)
 	var quantity_mult: float = _run_quantity_multiplier() * (1.0 + player.item_find / 100.0)
 	var coin_piles: int = maxi(2, int(round(rng.randf_range(2.0, 4.0) * quantity_mult * sqrt(reward_scale))))
 
@@ -662,6 +671,10 @@ func _spawn_loot_burst(position_value: Vector2, reward_scale: float, elite: bool
 	if rng.randf() < gear_chance:
 		var gear_item: Dictionary = _generate_gear(depth, elite)
 		_spawn_pickup("gear", 1, gear_item, position_value)
+		if player.gear_duplicate_chance > 0.0 and rng.randf() < player.gear_duplicate_chance:
+			var bonus_gear: Dictionary = _generate_gear(depth, elite)
+			_spawn_pickup("gear", 1, bonus_gear, position_value + Vector2(14.0, 0.0))
+			_add_feed("DOUBLE DROP!")
 
 func _spawn_pickup(type_value: String, amount_value: int, gear_value: Dictionary, position_value: Vector2) -> void:
 	var pickup := LootPickup.new()
@@ -698,6 +711,8 @@ func _on_loot_collected(pickup: LootPickup) -> void:
 			_add_feed("JACKPOT!  +₵%d" % pickup.amount)
 		"gear":
 			run_gear.append(pickup.gear.duplicate(true))
+			if is_instance_valid(player):
+				player.register_gear_pickup()
 			var drop_rarity: String = String(pickup.gear.get("rarity", "Common"))
 			if drop_rarity == "Gilded":
 				_add_feed("GILDED DROP!  %s  (~₵%d)" % [String(pickup.gear.get("name", "Item")), int(pickup.gear.get("value", 0))])
@@ -814,7 +829,31 @@ func _calculate_player_stats() -> Dictionary:
 		"move_speed": 270.0,
 		"currency_find": 0.0,
 		"item_find": 0.0,
-		"weapon_type": "repeater"
+		"weapon_type": "repeater",
+		"dash_cooldown_mult": 1.0,
+		"pickup_radius": 145.0,
+		"gear_pickup_heal": 0.0,
+		"kill_heal": 0.0,
+		"damage_taken_mult": 1.0,
+		"hurt_speed_bonus": 0.0,
+		"hurt_speed_duration": 0.0,
+		"point_blank_bonus": 0.0,
+		"point_blank_range": 125.0,
+		"knockback_mult": 1.0,
+		"projectile_radius_mult": 1.0,
+		"bonus_pierce": 0,
+		"bonus_projectiles": 0,
+		"projectile_damage_mult": 1.0,
+		"ricochet_count": 0,
+		"frenzy_on_kill": false,
+		"explosion_fraction": 0.0,
+		"treasure_room_bonus": 0.0,
+		"elite_currency_bonus": 0.0,
+		"normal_currency_penalty": 0.0,
+		"gear_duplicate_chance": 0.0,
+		"cheat_death": false,
+		"max_hp_mult": 1.0,
+		"move_speed_mult": 1.0
 	}
 	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
 	for slot_name: String in gear_slots:
@@ -827,7 +866,72 @@ func _calculate_player_stats() -> Dictionary:
 		stats["item_find"] = float(stats["item_find"]) + float(item.get("item_find", 0.0))
 		if slot_name == "weapon" and not item.is_empty():
 			stats["weapon_type"] = String(item.get("weapon_type", "repeater"))
+		_apply_item_mechanics_to_stats(stats, item)
+
+	stats["max_hp"] = float(stats["max_hp"]) * float(stats["max_hp_mult"])
+	stats["move_speed"] = float(stats["move_speed"]) * float(stats["move_speed_mult"])
 	return stats
+
+func _apply_item_mechanics_to_stats(stats: Dictionary, item: Dictionary) -> void:
+	var mechanics_variant: Variant = item.get("mechanics", [])
+	if typeof(mechanics_variant) != TYPE_ARRAY:
+		return
+	for mechanic_variant: Variant in mechanics_variant as Array:
+		if typeof(mechanic_variant) != TYPE_DICTIONARY:
+			continue
+		var mechanic: Dictionary = mechanic_variant as Dictionary
+		match String(mechanic.get("id", "")):
+			"point_blank":
+				stats["point_blank_bonus"] = maxf(float(stats["point_blank_bonus"]), 0.45)
+			"heavy_rounds":
+				stats["knockback_mult"] = float(stats["knockback_mult"]) * 1.90
+				stats["projectile_radius_mult"] = float(stats["projectile_radius_mult"]) * 1.15
+			"quickstep":
+				stats["dash_cooldown_mult"] = float(stats["dash_cooldown_mult"]) * 0.78
+			"adrenaline_lining":
+				stats["hurt_speed_bonus"] = maxf(float(stats["hurt_speed_bonus"]), 0.35)
+				stats["hurt_speed_duration"] = maxf(float(stats["hurt_speed_duration"]), 1.20)
+			"magnet_heart":
+				stats["pickup_radius"] = float(stats["pickup_radius"]) + 140.0
+			"field_medic":
+				stats["gear_pickup_heal"] = float(stats["gear_pickup_heal"]) + 8.0
+			"split_chamber":
+				stats["bonus_projectiles"] = int(stats["bonus_projectiles"]) + 1
+				stats["projectile_damage_mult"] = float(stats["projectile_damage_mult"]) * 0.72
+			"bore_rounds":
+				stats["bonus_pierce"] = int(stats["bonus_pierce"]) + 2
+			"second_wind":
+				stats["kill_heal"] = float(stats["kill_heal"]) + 1.5
+			"hoarders_bargain":
+				stats["currency_find"] = float(stats["currency_find"]) + 25.0
+				stats["max_hp_mult"] = float(stats["max_hp_mult"]) * 0.85
+			"ricochet":
+				stats["ricochet_count"] = int(stats["ricochet_count"]) + 1
+			"kill_frenzy":
+				stats["frenzy_on_kill"] = true
+			"armored_greed":
+				stats["item_find"] = float(stats["item_find"]) + 20.0
+				stats["damage_taken_mult"] = float(stats["damage_taken_mult"]) * 1.15
+			"treasure_scent":
+				stats["treasure_room_bonus"] = float(stats["treasure_room_bonus"]) + 0.07
+			"explosive_rounds":
+				stats["explosion_fraction"] = maxf(float(stats["explosion_fraction"]), 0.45)
+			"glass_rat":
+				stats["move_speed_mult"] = float(stats["move_speed_mult"]) * 1.30
+				stats["max_hp_mult"] = float(stats["max_hp_mult"]) * 0.75
+			"elite_tax":
+				stats["elite_currency_bonus"] = float(stats["elite_currency_bonus"]) + 0.50
+				stats["normal_currency_penalty"] = float(stats["normal_currency_penalty"]) + 0.15
+			"kings_barrage":
+				stats["bonus_projectiles"] = int(stats["bonus_projectiles"]) + 2
+				stats["projectile_damage_mult"] = float(stats["projectile_damage_mult"]) * 0.62
+			"dead_mans_insurance":
+				stats["cheat_death"] = true
+			"hoarders_curse":
+				stats["currency_find"] = float(stats["currency_find"]) + 60.0
+				stats["damage_taken_mult"] = float(stats["damage_taken_mult"]) * 1.30
+			"double_drop":
+				stats["gear_duplicate_chance"] = float(stats["gear_duplicate_chance"]) + 0.10
 
 func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
@@ -851,7 +955,8 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 		"currency_find": 0.0,
 		"item_find": 0.0,
 		"implicit": {},
-		"affixes": []
+		"affixes": [],
+		"mechanics": []
 	}
 	next_item_id += 1
 
@@ -866,13 +971,28 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 		}
 
 	var affix_count: int = 0
+	var mechanic_count: int = 0
 	match rarity:
 		"Magic":
-			affix_count = rng.randi_range(1, 2)
+			affix_count = 1
+			mechanic_count = 1
 		"Rare":
-			affix_count = 3
+			affix_count = 2
+			mechanic_count = 1
 		"Gilded":
-			affix_count = 4
+			affix_count = 3
+			mechanic_count = 2
+
+	var mechanics: Array[Dictionary] = []
+	var used_mechanics: Array[String] = []
+	for mechanic_index in range(mechanic_count):
+		var prefer_high: bool = rarity == "Gilded" and mechanic_index == 0
+		var rolled_mechanic: Dictionary = _roll_mechanic(slot, used_mechanics, prefer_high)
+		if rolled_mechanic.is_empty():
+			break
+		mechanics.append(rolled_mechanic)
+		used_mechanics.append(String(rolled_mechanic.get("id", "")))
+	item["mechanics"] = mechanics
 
 	var candidates: Array[String] = _affix_candidates(slot)
 	var used_stats: Array[String] = []
@@ -986,6 +1106,62 @@ func _affix_candidates(slot: String) -> Array[String]:
 		_:
 			return ["damage", "max_hp", "move_speed", "currency_find", "item_find"]
 
+func _mechanic_pool(slot: String) -> Array[Dictionary]:
+	var pool: Array[Dictionary] = []
+	match slot:
+		"weapon":
+			pool = [
+				{"id":"point_blank", "tier":1, "name":"Point Blank", "prefix":"Close-Quarters", "description":"+45% projectile damage within 125 px."},
+				{"id":"heavy_rounds", "tier":1, "name":"Heavy Rounds", "prefix":"Heavy", "description":"Projectiles are larger and deal 90% more knockback."},
+				{"id":"split_chamber", "tier":2, "name":"Split Chamber", "prefix":"Split", "description":"Fires extra projectiles, but each projectile deals less damage."},
+				{"id":"bore_rounds", "tier":2, "name":"Bore Rounds", "prefix":"Boring", "description":"Projectiles pierce 2 additional enemies."},
+				{"id":"ricochet", "tier":3, "name":"Ricochet", "prefix":"Ricocheting", "description":"Projectiles bounce to 1 nearby enemy after their final hit."},
+				{"id":"kill_frenzy", "tier":3, "name":"Kill Frenzy", "prefix":"Frenzied", "description":"Kills grant +8% fire rate for 3 sec, stacking up to 5 times."},
+				{"id":"explosive_rounds", "tier":4, "name":"Explosive Rounds", "prefix":"Explosive", "description":"Projectile kills explode for 45% of the killing shot's damage."},
+				{"id":"kings_barrage", "tier":5, "name":"King's Barrage", "prefix":"Barrage", "description":"Fires 2 additional projectiles with reduced damage per projectile."}
+			]
+		"armor":
+			pool = [
+				{"id":"quickstep", "tier":1, "name":"Quickstep", "prefix":"Quickstep", "description":"Dash cooldown is 22% shorter."},
+				{"id":"adrenaline_lining", "tier":1, "name":"Adrenaline Lining", "prefix":"Adrenaline", "description":"Taking damage grants +35% movement for 1.2 sec."},
+				{"id":"second_wind", "tier":2, "name":"Second Wind", "prefix":"Second-Wind", "description":"Each kill restores 1.5 HP."},
+				{"id":"armored_greed", "tier":3, "name":"Armored Greed", "prefix":"Greed-Lined", "description":"+20% Item Find, but you take 15% more damage."},
+				{"id":"glass_rat", "tier":4, "name":"Glass Rat", "prefix":"Glass", "description":"+30% movement speed, but -25% maximum HP."},
+				{"id":"dead_mans_insurance", "tier":5, "name":"Dead Man's Insurance", "prefix":"Insured", "description":"Once per Claim depth, lethal damage leaves you at 1 HP."}
+			]
+		_:
+			pool = [
+				{"id":"magnet_heart", "tier":1, "name":"Magnet Heart", "prefix":"Magnetic", "description":"Loot magnet radius is dramatically increased."},
+				{"id":"field_medic", "tier":1, "name":"Field Medic", "prefix":"Medic", "description":"Picking up gear restores 8 HP."},
+				{"id":"hoarders_bargain", "tier":2, "name":"Hoarder's Bargain", "prefix":"Bargain", "description":"+25% Currency Find, but -15% maximum HP."},
+				{"id":"treasure_scent", "tier":3, "name":"Treasure Scent", "prefix":"Treasure-Scented", "description":"Treasure rooms are 7 percentage points more common."},
+				{"id":"elite_tax", "tier":4, "name":"Elite Tax", "prefix":"Taxing", "description":"Elites drop +50% currency; normal enemies drop -15% currency."},
+				{"id":"hoarders_curse", "tier":5, "name":"Hoarder's Curse", "prefix":"Cursed", "description":"+60% Currency Find, but you take 30% more damage."},
+				{"id":"double_drop", "tier":5, "name":"Double Drop", "prefix":"Duplicating", "description":"Gear drops have a 10% chance to produce an extra item."}
+			]
+	return pool
+
+func _roll_mechanic(slot: String, used_ids: Array[String], prefer_high: bool = false) -> Dictionary:
+	var eligible: Array[Dictionary] = []
+	var preferred: Array[Dictionary] = []
+	for mechanic: Dictionary in _mechanic_pool(slot):
+		var mechanic_id: String = String(mechanic.get("id", ""))
+		var mechanic_tier: int = int(mechanic.get("tier", 1))
+		if mechanic_tier > claim_tier or used_ids.has(mechanic_id):
+			continue
+		eligible.append(mechanic)
+		if mechanic_tier >= maxi(1, claim_tier - 1):
+			preferred.append(mechanic)
+
+	if eligible.is_empty():
+		return {}
+	var source: Array[Dictionary] = eligible
+	if prefer_high and not preferred.is_empty():
+		source = preferred
+	elif not preferred.is_empty() and rng.randf() < 0.60:
+		source = preferred
+	return source[rng.randi_range(0, source.size() - 1)].duplicate(true)
+
 func _best_affix_tier() -> int:
 	# T1/T2/T3/T4/T5 cap out at T5/T4/T3/T2/T1 affixes respectively.
 	return clampi(6 - claim_tier, 1, 5)
@@ -1093,15 +1269,21 @@ func _format_stat_value(stat: String, value: float, include_plus: bool = true) -
 func _make_generated_item_name(item: Dictionary) -> String:
 	var rarity: String = String(item.get("rarity", "Common"))
 	var base_name: String = String(item.get("base_name", "Gear"))
-	var prefixes: Array[String] = ["Greedy", "Filthy", "Lucky", "Rattling", "Stolen", "Crooked", "Shiny", "Hoarded", "Gnawed"]
 	var suffixes: Array[String] = ["of Plenty", "of Hunger", "of the Hoard", "of Fortune", "of Greed", "of Scavenging"]
 	var gilded_titles: Array[String] = ["Rat King's", "Vaultborn", "Midas-Touched", "Crownmarked", "Hoardlord's"]
+	var mechanic_prefix: String = ""
+
+	var mechanics_variant: Variant = item.get("mechanics", [])
+	if typeof(mechanics_variant) == TYPE_ARRAY:
+		var mechanic_array: Array = mechanics_variant as Array
+		if not mechanic_array.is_empty() and typeof(mechanic_array[0]) == TYPE_DICTIONARY:
+			mechanic_prefix = String((mechanic_array[0] as Dictionary).get("prefix", ""))
 
 	match rarity:
 		"Magic":
-			return "%s %s" % [prefixes[rng.randi_range(0, prefixes.size() - 1)], base_name]
+			return "%s %s" % [mechanic_prefix if not mechanic_prefix.is_empty() else "Modified", base_name]
 		"Rare":
-			return "%s %s %s" % [prefixes[rng.randi_range(0, prefixes.size() - 1)], base_name, suffixes[rng.randi_range(0, suffixes.size() - 1)]]
+			return "%s %s %s" % [mechanic_prefix if not mechanic_prefix.is_empty() else "Hoarded", base_name, suffixes[rng.randi_range(0, suffixes.size() - 1)]]
 		"Gilded":
 			return "%s %s" % [gilded_titles[rng.randi_range(0, gilded_titles.size() - 1)], base_name]
 		_:
@@ -1116,6 +1298,12 @@ func _item_value(item: Dictionary) -> int:
 	score += float(item.get("move_speed", 0.0)) * 5.5
 	score += float(item.get("currency_find", 0.0)) * 15.0
 	score += float(item.get("item_find", 0.0)) * 15.0
+
+	var mechanics_variant: Variant = item.get("mechanics", [])
+	if typeof(mechanics_variant) == TYPE_ARRAY:
+		for mechanic_variant: Variant in mechanics_variant as Array:
+			if typeof(mechanic_variant) == TYPE_DICTIONARY:
+				score += 45.0 + float(int((mechanic_variant as Dictionary).get("tier", 1))) * 25.0
 
 	var rarity: String = String(item.get("rarity", "Common"))
 	match rarity:
@@ -1151,6 +1339,15 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 			var implicit_value: float = float(implicit.get("value", 0.0))
 			text += "\n[color=#d4bd70]Implicit  %s[/color]" % _format_stat_value(implicit_stat, implicit_value)
 
+	var mechanics_variant: Variant = item.get("mechanics", [])
+	if typeof(mechanics_variant) == TYPE_ARRAY:
+		for mechanic_variant: Variant in mechanics_variant as Array:
+			if typeof(mechanic_variant) != TYPE_DICTIONARY:
+				continue
+			var mechanic: Dictionary = mechanic_variant as Dictionary
+			text += "\n[color=#ffb45d][b]◆ %s[/b][/color]" % String(mechanic.get("name", "Mechanic"))
+			text += "\n[color=#aeb6c4]%s[/color]" % String(mechanic.get("description", ""))
+
 	var affixes_variant: Variant = item.get("affixes", [])
 	if typeof(affixes_variant) == TYPE_ARRAY:
 		var affix_array: Array = affixes_variant as Array
@@ -1182,6 +1379,8 @@ func _normalize_item(raw_item: Dictionary) -> Dictionary:
 		item["weapon_type"] = "repeater" if String(item.get("slot", "")) == "weapon" else ""
 	if not item.has("implicit"):
 		item["implicit"] = {}
+	if not item.has("mechanics"):
+		item["mechanics"] = []
 	if not item.has("affixes"):
 		var legacy_affixes: Array[Dictionary] = []
 		var legacy_stats: Array[String] = ["damage", "attack_speed", "max_hp", "move_speed", "currency_find", "item_find"]
@@ -1201,7 +1400,7 @@ func _make_starter_item(slot: String) -> Dictionary:
 				"base_name":"Scrap Repeater", "weapon_type":"repeater", "depth":0, "item_level":1,
 				"damage":3.0, "attack_speed":0.0, "max_hp":0.0, "move_speed":0.0,
 				"currency_find":0.0, "item_find":0.0,
-				"implicit":{"stat":"damage", "value":3.0, "label":"Damage"}, "affixes":[]
+				"implicit":{"stat":"damage", "value":3.0, "label":"Damage"}, "affixes":[], "mechanics":[]
 			}
 		"armor":
 			item = {
@@ -1209,7 +1408,7 @@ func _make_starter_item(slot: String) -> Dictionary:
 				"base_name":"Padded Rags", "weapon_type":"", "depth":0, "item_level":1,
 				"damage":0.0, "attack_speed":0.0, "max_hp":12.0, "move_speed":0.0,
 				"currency_find":0.0, "item_find":0.0,
-				"implicit":{"stat":"max_hp", "value":12.0, "label":"Max HP"}, "affixes":[]
+				"implicit":{"stat":"max_hp", "value":12.0, "label":"Max HP"}, "affixes":[], "mechanics":[]
 			}
 		_:
 			item = {
@@ -1217,7 +1416,7 @@ func _make_starter_item(slot: String) -> Dictionary:
 				"base_name":"Bent Lucky Coin", "weapon_type":"", "depth":0, "item_level":1,
 				"damage":0.0, "attack_speed":0.0, "max_hp":0.0, "move_speed":0.0,
 				"currency_find":3.0, "item_find":0.0,
-				"implicit":{"stat":"currency_find", "value":3.0, "label":"Currency Find"}, "affixes":[]
+				"implicit":{"stat":"currency_find", "value":3.0, "label":"Currency Find"}, "affixes":[], "mechanics":[]
 			}
 	next_item_id += 1
 	item["value"] = _item_value(item)
@@ -1468,8 +1667,32 @@ func _comparison_bbcode(candidate: Dictionary, current: Dictionary) -> String:
 		var color_hex: String = "#72df8b" if delta > 0.0 else "#ff6d79"
 		lines.append("[color=%s]%s  %s%s[/color]" % [color_hex, String(stat_def["label"]), number_text, suffix])
 
+	var candidate_mechanics: Dictionary = {}
+	var current_mechanics: Dictionary = {}
+	var candidate_variant: Variant = candidate.get("mechanics", [])
+	if typeof(candidate_variant) == TYPE_ARRAY:
+		for mechanic_variant: Variant in candidate_variant as Array:
+			if typeof(mechanic_variant) == TYPE_DICTIONARY:
+				var mechanic: Dictionary = mechanic_variant as Dictionary
+				candidate_mechanics[String(mechanic.get("id", ""))] = String(mechanic.get("name", "Mechanic"))
+	var current_variant: Variant = current.get("mechanics", [])
+	if typeof(current_variant) == TYPE_ARRAY:
+		for mechanic_variant: Variant in current_variant as Array:
+			if typeof(mechanic_variant) == TYPE_DICTIONARY:
+				var mechanic: Dictionary = mechanic_variant as Dictionary
+				current_mechanics[String(mechanic.get("id", ""))] = String(mechanic.get("name", "Mechanic"))
+
+	for mechanic_id_variant: Variant in candidate_mechanics.keys():
+		var mechanic_id: String = String(mechanic_id_variant)
+		if not current_mechanics.has(mechanic_id):
+			lines.append("[color=#72df8b]+ %s[/color]" % String(candidate_mechanics[mechanic_id]))
+	for mechanic_id_variant: Variant in current_mechanics.keys():
+		var mechanic_id: String = String(mechanic_id_variant)
+		if not candidate_mechanics.has(mechanic_id):
+			lines.append("[color=#ff6d79]- %s[/color]" % String(current_mechanics[mechanic_id]))
+
 	if lines.is_empty():
-		return "[color=#8d96a6]No numerical stat change.[/color]"
+		return "[color=#8d96a6]No numerical or mechanical change.[/color]"
 	return "\n".join(PackedStringArray(lines))
 
 func _equip_selected_item() -> void:

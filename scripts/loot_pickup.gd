@@ -34,9 +34,10 @@ func _physics_process(delta: float) -> void:
 		var pulse: float = 1.0 + sin(_age * 5.0) * 0.045
 		scale = Vector2.ONE * pulse
 	if _age > 0.35 and is_instance_valid(player):
+		var magnet_radius: float = maxf(45.0, player.pickup_radius)
 		var dist: float = global_position.distance_to(player.global_position)
-		if dist < 145.0:
-			var pull: float = remap(clampf(dist, 18.0, 145.0), 18.0, 145.0, 1050.0, 260.0)
+		if dist < magnet_radius:
+			var pull: float = remap(clampf(dist, 18.0, magnet_radius), 18.0, magnet_radius, 1050.0, 260.0)
 			global_position = global_position.move_toward(player.global_position, pull * delta)
 
 func _build_ground_label() -> void:

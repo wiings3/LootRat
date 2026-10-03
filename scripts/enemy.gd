@@ -24,6 +24,7 @@ var _attack_flash_timer: float = 0.0
 var _knockback_velocity: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
+	add_to_group("loot_enemies")
 	collision_layer = 2
 	collision_mask = 1 | 4
 	var shape := CollisionShape2D.new()
@@ -135,9 +136,9 @@ func _fire_ranged_projectile(direction: Vector2) -> void:
 	projectile_parent.add_child(projectile)
 	projectile.global_position = global_position + projectile.direction * (34.0 if is_elite else 27.0)
 
-func take_damage(amount: float, hit_direction: Vector2 = Vector2.ZERO, force: float = 0.0) -> void:
+func take_damage(amount: float, hit_direction: Vector2 = Vector2.ZERO, force: float = 0.0) -> bool:
 	if hp <= 0.0:
-		return
+		return false
 	hp -= amount
 	_hit_flash_timer = 0.10
 	if hit_direction.length_squared() > 0.0 and force > 0.0:
@@ -146,8 +147,9 @@ func take_damage(amount: float, hit_direction: Vector2 = Vector2.ZERO, force: fl
 	if hp <= 0.0:
 		killed.emit(self)
 		queue_free()
-	else:
-		queue_redraw()
+		return true
+	queue_redraw()
+	return false
 
 func _spawn_damage_number(amount: float) -> void:
 	if not is_inside_tree():
