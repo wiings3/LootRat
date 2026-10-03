@@ -1,9 +1,12 @@
 class_name LootEnemy
 extends CharacterBody2D
 
+const EnemyProjectileScript = preload("res://scripts/enemy_projectile.gd")
+
 signal killed(enemy: LootEnemy)
 
 var target: LootPlayer = null
+var projectile_parent: Node = null
 var max_hp: float = 35.0
 var hp: float = 35.0
 var move_speed: float = 105.0
@@ -107,8 +110,8 @@ func _physics_process(delta: float) -> void:
 			desired_velocity = -to_target.normalized() * move_speed * 0.82
 		elif _attack_timer <= 0.0:
 			_attack_timer = attack_cooldown
-			_attack_flash_timer = 0.16
-			target.take_damage(contact_damage)
+			_attack_flash_timer = 0.18
+			call_deferred("_fire_ranged_projectile", to_target.normalized())
 	else:
 		if distance_to_target > attack_range:
 			desired_velocity = to_target.normalized() * move_speed
@@ -119,6 +122,18 @@ func _physics_process(delta: float) -> void:
 
 	velocity = desired_velocity + _knockback_velocity
 	move_and_slide()
+
+func _fire_ranged_projectile(direction: Vector2) -> void:
+	if projectile_parent == null or not is_instance_valid(target):
+		return
+	var projectile := EnemyProjectileScript.new()
+	projectile.direction = direction.normalized()
+	projectile.damage = contact_damage
+	projectile.speed = 410.0 if is_elite else 340.0
+	projectile.radius = 8.0 if is_elite else 6.0
+	projectile.is_elite = is_elite
+	projectile_parent.add_child(projectile)
+	projectile.global_position = global_position + projectile.direction * (34.0 if is_elite else 27.0)
 
 func take_damage(amount: float, hit_direction: Vector2 = Vector2.ZERO, force: float = 0.0) -> void:
 	if hp <= 0.0:
