@@ -1,12 +1,29 @@
 # Loot Rat MVP (Godot 4.5.x)
 
-A deliberately small prototype for testing one loop:
+A deliberately focused loot-game prototype:
 
-**Kill -> loot -> extract -> equip/sell -> juice the next run -> descend for greedier rewards.**
+**Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
+
+## v0.2 — First Real Claim
+- Claims are now 5–8 room runs instead of one arena dump.
+- Random PACK, SWARM, ELITE, TREASURE, and BOSS rooms.
+- Clear a room, collect the pile, then press **E** to push forward.
+- Four real weapon bases:
+  - **Repeater** — dependable automatic fire.
+  - **Scattergun** — slow five-pellet spread.
+  - **Piercer** — heavy shot that punches through multiple enemies.
+  - **Sprayer** — very fast, lower-damage bullet hose.
+- Four enemy archetypes: chaser, skitter, brute, ranged shooter.
+- Elite and boss variants.
+- Hit flash, knockback, damage numbers, attack telegraphs.
+- Ground labels for meaningful loot.
+- Very rare **JACKPOT** currency drops.
+- Treasure rooms produce a bonus cache after the pack is cleared.
+- Existing Claim juicing, stash, equipment, net worth, extraction, death-loss, and save systems remain intact.
 
 ## Run
 1. Open this folder in Godot 4.5.x.
-2. Run the project (`F6`/`F5`).
+2. Run the project.
 3. At the Claim Table, optionally spend Seals to juice the next run.
 4. Click **RUN CLAIM**.
 
@@ -14,20 +31,7 @@ A deliberately small prototype for testing one loop:
 - WASD: move
 - Hold Left Mouse: fire toward cursor
 - Space: dash / brief invulnerability
+- E: leave a cleared room and enter the next chamber
 
-## MVP systems
-- Short arena-based Claims
-- Increasing depth and enemy scaling
-- Elite enemies
-- Loot explosions with coins, Seals, and gear
-- Three gear slots: Weapon, Armor, Charm
-- Item affixes including combat power and loot-find stats
-- Extract vs Descend decision after every floor
-- All run loot is unsecured until extraction
-- Death deletes the unsecured haul
-- Claim juicing: density, item quantity, currency quantity, elite chance
-- Stash, equip, sell, net worth
-- Persistent save at `user://loot_rat_save.json`
-
-## Intentional omissions
-No final art, campaign, skill tree, crafting tree, bosses, vendors, or procedural rooms yet. The purpose of this build is to validate the economic/greed loop before expanding scope.
+## Current goal
+This build is still intentionally shape-art and systems-first. The question being tested is whether room pacing + distinct weapons + greed/extraction makes the loot economy compelling enough to build on.

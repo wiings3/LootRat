@@ -32,6 +32,11 @@ var alive_enemies: int = 0
 var floor_kills: int = 0
 var total_run_kills: int = 0
 var decision_open: bool = false
+var room_index: int = 1
+var rooms_total: int = 5
+var current_room_type: String = "PACK"
+var room_ready_to_advance: bool = false
+var room_clear_delay: float = 0.0
 
 var stash_coins: int = 0
 var stash_seals: int = 5
@@ -66,6 +71,7 @@ func _configure_input_map() -> void:
 	_ensure_key_action(&"move_up", KEY_W)
 	_ensure_key_action(&"move_down", KEY_S)
 	_ensure_key_action(&"dash", KEY_SPACE)
+	_ensure_key_action(&"interact", KEY_E)
 	_ensure_mouse_action(&"attack", MOUSE_BUTTON_LEFT)
 
 func _ensure_key_action(action: StringName, keycode: Key) -> void:
@@ -143,7 +149,7 @@ func _build_ui() -> void:
 	_build_decision_panel()
 
 	var controls := Label.new()
-	controls.text = "WASD move   •   Hold LMB fire   •   SPACE dash"
+	controls.text = "WASD move   •   Hold LMB fire   •   SPACE dash   •   E enter next room"
 	controls.position = Vector2(20.0, 682.0)
 	controls.add_theme_color_override("font_color", Color(0.65, 0.7, 0.78))
 	hud.add_child(controls)
@@ -277,10 +283,28 @@ func _make_button(text_value: String, callback: Callable, min_size: Vector2 = Ve
 	button.pressed.connect(callback)
 	return button
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_update_top_bar()
-	if state == "run" and alive_enemies <= 0 and not decision_open and is_instance_valid(player):
+	if state != "run" or not is_instance_valid(player) or decision_open:
+		return
+	if alive_enemies > 0:
+		return
+	room_clear_delay = maxf(0.0, room_clear_delay - delta)
+	if room_clear_delay > 0.0:
+		return
+	if room_index >= rooms_total:
+		_scoop_remaining_loot()
 		_open_floor_clear()
+		return
+	if not room_ready_to_advance:
+		room_ready_to_advance = true
+		if current_room_type == "TREASURE":
+			var cache_value: int = maxi(35, int(round((75.0 + float(depth) * 28.0) * _run_currency_multiplier())))
+			_spawn_pickup("jackpot", cache_value, {}, ARENA_BOUNDS.get_center())
+			_add_feed("TREASURE CACHE!  + a fat payout")
+		_add_feed("ROOM CLEAR — grab loot, then press E")
+	if Input.is_action_just_pressed("interact"):
+		_advance_room()
 
 func _enter_hub() -> void:
 	state = "hub"
@@ -319,33 +343,86 @@ func _begin_floor() -> void:
 	decision_panel.visible = false
 	decision_open = false
 	floor_kills = 0
+	room_index = 1
+	rooms_total = clampi(5 + rng.randi_range(0, 2) + int((depth - 1) / 3), 5, 8)
+	room_ready_to_advance = false
+	room_clear_delay = 0.0
 	_spawn_player()
-	_spawn_floor_enemies()
-	_add_feed("Entered depth %d" % depth)
+	_begin_room()
+	_add_feed("Entered depth %d — %d rooms" % [depth, rooms_total])
 
 func _spawn_player() -> void:
 	player = LootPlayer.new()
-	player.global_position = ARENA_BOUNDS.get_center()
 	player.world_bounds = ARENA_BOUNDS.grow(-18.0)
 	player.projectile_parent = projectile_layer
 	player.configure(_calculate_player_stats())
 	player.died.connect(_on_player_died)
 	player.hp_changed.connect(_on_player_hp_changed)
 	actor_layer.add_child(player)
+	player.global_position = ARENA_BOUNDS.get_center()
 	_on_player_hp_changed(player.hp, player.max_hp)
 
-func _spawn_floor_enemies() -> void:
-	var density_mult: float = 1.0 + float(juice_density) * 0.20 + float(depth - 1) * 0.12
-	var base_count: int = 12 + depth * 3
-	var spawn_count: int = maxi(8, int(round(float(base_count) * density_mult)))
-	var elite_chance: float = 0.05 + float(juice_elite) * 0.035 + float(depth - 1) * 0.018
-	alive_enemies = spawn_count
+func _begin_room() -> void:
+	room_ready_to_advance = false
+	room_clear_delay = 0.0
+	current_room_type = _choose_room_type()
+	arena.configure_room(depth, room_index, rooms_total, current_room_type)
+	if is_instance_valid(player):
+		player.global_position = ARENA_BOUNDS.get_center()
+	for child: Node in projectile_layer.get_children():
+		child.queue_free()
+	_spawn_room_enemies()
+	_add_feed("Room %d/%d — %s" % [room_index, rooms_total, current_room_type])
 
+func _choose_room_type() -> String:
+	if room_index >= rooms_total:
+		return "BOSS"
+	var roll: float = rng.randf()
+	if roll < 0.16:
+		return "TREASURE"
+	if roll < 0.34:
+		return "ELITE"
+	if roll < 0.53:
+		return "SWARM"
+	return "PACK"
+
+func _spawn_room_enemies() -> void:
+	var density_mult: float = 1.0 + float(juice_density) * 0.20 + float(depth - 1) * 0.10
+	var base_count: int = 4 + depth
+	var spawn_count: int = maxi(3, int(round(float(base_count) * density_mult)))
+	var elite_chance: float = 0.045 + float(juice_elite) * 0.035 + float(depth - 1) * 0.015
+
+	match current_room_type:
+		"SWARM":
+			spawn_count = maxi(8, int(round(float(spawn_count) * 1.65)))
+		"ELITE":
+			spawn_count = maxi(4, spawn_count - 1)
+			elite_chance += 0.38
+		"TREASURE":
+			spawn_count = maxi(4, spawn_count - 2)
+			elite_chance += 0.10
+		"BOSS":
+			spawn_count = maxi(4, 4 + int(depth / 2))
+
+	alive_enemies = spawn_count
 	for i in range(spawn_count):
 		var enemy := LootEnemy.new()
-		var kind: int = rng.randi_range(0, 2)
+		var kind: int
 		var elite: bool = rng.randf() < elite_chance
+		match current_room_type:
+			"SWARM":
+				kind = 1 if rng.randf() < 0.78 else rng.randi_range(0, 3)
+			"BOSS":
+				if i == 0:
+					kind = 2
+					elite = true
+				else:
+					kind = rng.randi_range(0, 3)
+			_:
+				kind = rng.randi_range(0, 3)
 		enemy.configure(kind, depth, elite)
+		if current_room_type == "BOSS" and i == 0:
+			enemy.make_boss(depth)
 		enemy.target = player
 		enemy.global_position = _random_spawn_position()
 		enemy.killed.connect(_on_enemy_killed)
@@ -353,20 +430,34 @@ func _spawn_floor_enemies() -> void:
 
 func _random_spawn_position() -> Vector2:
 	var pos := Vector2.ZERO
-	for _attempt in range(12):
+	for _attempt in range(16):
 		pos = Vector2(
-			rng.randf_range(ARENA_BOUNDS.position.x + 30.0, ARENA_BOUNDS.end.x - 30.0),
-			rng.randf_range(ARENA_BOUNDS.position.y + 30.0, ARENA_BOUNDS.end.y - 30.0)
+			rng.randf_range(ARENA_BOUNDS.position.x + 38.0, ARENA_BOUNDS.end.x - 38.0),
+			rng.randf_range(ARENA_BOUNDS.position.y + 38.0, ARENA_BOUNDS.end.y - 38.0)
 		)
-		if pos.distance_to(ARENA_BOUNDS.get_center()) > 210.0:
+		if pos.distance_to(ARENA_BOUNDS.get_center()) > 205.0:
 			break
 	return pos
+
+func _advance_room() -> void:
+	if state != "run" or not room_ready_to_advance or room_index >= rooms_total:
+		return
+	_scoop_remaining_loot()
+	room_index += 1
+	_begin_room()
+
+func _scoop_remaining_loot() -> void:
+	for child: Node in loot_layer.get_children():
+		if child is LootPickup:
+			(child as LootPickup).collect_now()
 
 func _on_enemy_killed(enemy: LootEnemy) -> void:
 	alive_enemies = maxi(0, alive_enemies - 1)
 	floor_kills += 1
 	total_run_kills += 1
 	_spawn_loot_burst(enemy.global_position, enemy.reward_scale, enemy.is_elite)
+	if alive_enemies <= 0:
+		room_clear_delay = 0.35
 
 func _spawn_loot_burst(position_value: Vector2, reward_scale: float, elite: bool) -> void:
 	if not is_instance_valid(player):
@@ -382,6 +473,11 @@ func _spawn_loot_burst(position_value: Vector2, reward_scale: float, elite: bool
 	var seal_chance: float = 0.045 * quantity_mult * (2.5 if elite else 1.0)
 	if rng.randf() < seal_chance:
 		_spawn_pickup("seal", 1, {}, position_value)
+
+	var jackpot_chance: float = 0.0025 * quantity_mult * (4.0 if elite else 1.0)
+	if rng.randf() < jackpot_chance:
+		var jackpot_value: int = maxi(125, int(round(rng.randf_range(180.0, 420.0) * reward_scale * _run_currency_multiplier() * (1.0 + float(depth - 1) * 0.35))))
+		_spawn_pickup("jackpot", jackpot_value, {}, position_value)
 
 	var gear_chance: float = 0.10 * quantity_mult * reward_scale
 	gear_chance = minf(0.68, gear_chance)
@@ -419,6 +515,9 @@ func _on_loot_collected(pickup: LootPickup) -> void:
 		"seal":
 			run_seals += pickup.amount
 			_add_feed("+1 Seal")
+		"jackpot":
+			run_coins += pickup.amount
+			_add_feed("JACKPOT!  +₵%d" % pickup.amount)
 		"gear":
 			run_gear.append(pickup.gear.duplicate(true))
 			_add_feed("GEAR: %s  (~₵%d)" % [String(pickup.gear.get("name", "Item")), int(pickup.gear.get("value", 0))])
@@ -531,7 +630,8 @@ func _calculate_player_stats() -> Dictionary:
 		"max_hp": 100.0,
 		"move_speed": 270.0,
 		"currency_find": 0.0,
-		"item_find": 0.0
+		"item_find": 0.0,
+		"weapon_type": "repeater"
 	}
 	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
 	for slot_name: String in gear_slots:
@@ -542,6 +642,8 @@ func _calculate_player_stats() -> Dictionary:
 		stats["move_speed"] = float(stats["move_speed"]) + float(item.get("move_speed", 0.0))
 		stats["currency_find"] = float(stats["currency_find"]) + float(item.get("currency_find", 0.0))
 		stats["item_find"] = float(stats["item_find"]) + float(item.get("item_find", 0.0))
+		if slot_name == "weapon" and not item.is_empty():
+			stats["weapon_type"] = String(item.get("weapon_type", "repeater"))
 	return stats
 
 func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
@@ -568,7 +670,8 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 		"max_hp": 0.0,
 		"move_speed": 0.0,
 		"currency_find": 0.0,
-		"item_find": 0.0
+		"item_find": 0.0,
+		"weapon_type": ""
 	}
 	next_item_id += 1
 
@@ -592,7 +695,11 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 			"currency_find": item[affix] = snappedf(rng.randf_range(5.0, 14.0) * power, 0.1)
 			"item_find": item[affix] = snappedf(rng.randf_range(5.0, 14.0) * power, 0.1)
 
-	item["name"] = _make_item_name(slot, rarity)
+	if slot == "weapon":
+		item["weapon_type"] = _random_weapon_type()
+		item["name"] = _make_weapon_name(String(item["weapon_type"]), rarity)
+	else:
+		item["name"] = _make_item_name(slot, rarity)
 	item["value"] = _item_value(item)
 	return item
 
@@ -601,6 +708,22 @@ func _affix_candidates(slot: String) -> Array[String]:
 		"weapon": return ["damage", "attack_speed", "currency_find", "item_find"]
 		"armor": return ["max_hp", "move_speed", "currency_find", "item_find"]
 		_: return ["damage", "max_hp", "move_speed", "currency_find", "item_find"]
+
+func _random_weapon_type() -> String:
+	var weapon_types: Array[String] = ["repeater", "scattergun", "piercer", "sprayer"]
+	return weapon_types[rng.randi_range(0, weapon_types.size() - 1)]
+
+func _make_weapon_name(weapon_type: String, rarity: String) -> String:
+	var prefixes: Array[String] = ["Greedy", "Filthy", "Lucky", "Gilded", "Rattling", "Stolen", "Crooked", "Shiny"]
+	var base_name: String
+	match weapon_type:
+		"scattergun": base_name = "Scattergun"
+		"piercer": base_name = "Piercer"
+		"sprayer": base_name = "Sprayer"
+		_: base_name = "Repeater"
+	if rarity == "Common":
+		return base_name
+	return "%s %s" % [prefixes[rng.randi_range(0, prefixes.size() - 1)], base_name]
 
 func _make_item_name(slot: String, rarity: String) -> String:
 	var prefixes: Array[String] = ["Greedy", "Filthy", "Lucky", "Gilded", "Rattling", "Stolen", "Crooked", "Shiny"]
@@ -643,6 +766,7 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 	if compact:
 		return text
 	var stats: Array[String] = []
+	if String(item.get("slot", "")) == "weapon": stats.append("Base: %s" % String(item.get("weapon_type", "repeater")).capitalize())
 	if float(item.get("damage", 0.0)) > 0.0: stats.append("+%.1f Damage" % float(item.get("damage", 0.0)))
 	if float(item.get("attack_speed", 0.0)) > 0.0: stats.append("+%.2f Attacks/sec" % float(item.get("attack_speed", 0.0)))
 	if float(item.get("max_hp", 0.0)) > 0.0: stats.append("+%.0f Max HP" % float(item.get("max_hp", 0.0)))
@@ -658,7 +782,7 @@ func _update_hub_ui() -> void:
 	claim_label.text = "[b]ABANDONED CLAIM[/b]\nMonster Density: [color=#ffd75d]+%d%%[/color]\nItem Quantity: [color=#8dd7ff]+%d%%[/color]\nCurrency Quantity: [color=#ffd75d]+%d%%[/color]\nElite Chance: [color=#ff9b4a]+%.1f%%[/color]" % [juice_density * 20, juice_quantity * 25, juice_currency * 25, 5.0 + float(juice_elite) * 3.5]
 
 	var stats: Dictionary = _calculate_player_stats()
-	stats_label.text = "[b]Current build[/b]   Damage %.1f   •   %.2f attacks/s   •   %.0f HP\nMove %.0f   •   Currency Find %.1f%%   •   Item Find %.1f%%" % [float(stats["damage"]), float(stats["attack_speed"]), float(stats["max_hp"]), float(stats["move_speed"]), float(stats["currency_find"]), float(stats["item_find"])]
+	stats_label.text = "[b]Current build[/b]   %s   •   Damage %.1f   •   %.2f base attacks/s   •   %.0f HP\nMove %.0f   •   Currency Find %.1f%%   •   Item Find %.1f%%" % [String(stats["weapon_type"]).capitalize(), float(stats["damage"]), float(stats["attack_speed"]), float(stats["max_hp"]), float(stats["move_speed"]), float(stats["currency_find"]), float(stats["item_find"])]
 
 	equipped_label.text = "[b]EQUIPPED[/b]\nWeapon: %s\nArmor: %s\nCharm: %s" % [_item_to_bbcode(equipped.get("weapon", {}) as Dictionary, true), _item_to_bbcode(equipped.get("armor", {}) as Dictionary, true), _item_to_bbcode(equipped.get("charm", {}) as Dictionary, true)]
 	_rebuild_inventory()
@@ -784,7 +908,7 @@ func _update_top_bar() -> void:
 		return
 	top_label.text = "₵%d    ◈ %d Seals    NET WORTH ₵%d" % [stash_coins, stash_seals, _calculate_net_worth()]
 	if state == "run":
-		run_label.text = "DEPTH %d   •   ENEMIES %d   •   UNSECURED ₵%d" % [depth, alive_enemies, _current_run_value()]
+		run_label.text = "D%d  ROOM %d/%d %s  •  ENEMIES %d  •  UNSECURED ₵%d" % [depth, room_index, rooms_total, current_room_type, alive_enemies, _current_run_value()]
 
 func _add_feed(text_value: String) -> void:
 	feed_lines.push_front(text_value)
@@ -804,7 +928,7 @@ func _clear_runtime_nodes() -> void:
 
 func _ensure_starter_gear() -> void:
 	if (equipped.get("weapon", {}) as Dictionary).is_empty():
-		equipped["weapon"] = {"id": next_item_id, "slot":"weapon", "rarity":"Common", "name":"Rusty Coinspitter", "depth":0, "damage":3.0, "attack_speed":0.0, "max_hp":0.0, "move_speed":0.0, "currency_find":0.0, "item_find":0.0, "value":70}
+		equipped["weapon"] = {"id": next_item_id, "slot":"weapon", "rarity":"Common", "name":"Rusty Repeater", "weapon_type":"repeater", "depth":0, "damage":3.0, "attack_speed":0.0, "max_hp":0.0, "move_speed":0.0, "currency_find":0.0, "item_find":0.0, "value":70}
 		next_item_id += 1
 	if (equipped.get("armor", {}) as Dictionary).is_empty():
 		equipped["armor"] = {"id": next_item_id, "slot":"armor", "rarity":"Common", "name":"Padded Rags", "depth":0, "damage":0.0, "attack_speed":0.0, "max_hp":12.0, "move_speed":0.0, "currency_find":0.0, "item_find":0.0, "value":65}
