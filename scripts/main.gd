@@ -1057,7 +1057,7 @@ func _format_stat_value(stat: String, value: float, include_plus: bool = true) -
 func _make_generated_item_name(item: Dictionary) -> String:
 	var rarity: String = String(item.get("rarity", "Common"))
 	var base_name: String = String(item.get("base_name", "Gear"))
-	var prefixes: Array[String] = ["Greedy", "Filthy", "Lucky", "Gilded", "Rattling", "Stolen", "Crooked", "Shiny", "Hoarded", "Gnawed"]
+	var prefixes: Array[String] = ["Greedy", "Filthy", "Lucky", "Rattling", "Stolen", "Crooked", "Shiny", "Hoarded", "Gnawed"]
 	var suffixes: Array[String] = ["of Plenty", "of Hunger", "of the Hoard", "of Fortune", "of Greed", "of Scavenging"]
 	var gilded_titles: Array[String] = ["Rat King's", "Vaultborn", "Midas-Touched", "Crownmarked", "Hoardlord's"]
 
