@@ -405,7 +405,7 @@ func _build_gear_panel() -> void:
 	selected_item_label.bbcode_enabled = true
 	selected_item_label.fit_content = false
 	selected_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	selected_item_label.custom_minimum_size = Vector2(202.0, 300.0)
+	selected_item_label.custom_minimum_size = Vector2(202.0, 238.0)
 	selected_item_label.add_theme_font_size_override("normal_font_size", 14)
 	inspector_root.add_child(selected_item_label)
 
@@ -429,14 +429,14 @@ func _build_gear_panel() -> void:
 
 func _build_crafting_panel() -> void:
 	crafting_panel = PanelContainer.new()
-	crafting_panel.position = Vector2(385.0, 105.0)
-	crafting_panel.size = Vector2(510.0, 540.0)
+	crafting_panel.position = Vector2(385.0, 92.0)
+	crafting_panel.size = Vector2(510.0, 560.0)
 	crafting_panel.visible = false
 	crafting_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.030, 0.042, 0.99), Color(0.55, 0.39, 0.16), 2))
 	hud.add_child(crafting_panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 9)
+	root.add_theme_constant_override("separation", 7)
 	crafting_panel.add_child(root)
 
 	var header := HBoxContainer.new()
@@ -460,23 +460,29 @@ func _build_crafting_panel() -> void:
 	crafting_item_label = RichTextLabel.new()
 	crafting_item_label.bbcode_enabled = true
 	crafting_item_label.fit_content = false
-	crafting_item_label.custom_minimum_size = Vector2(475.0, 178.0)
+	crafting_item_label.custom_minimum_size = Vector2(475.0, 160.0)
 	crafting_item_label.add_theme_font_size_override("normal_font_size", 14)
 	root.add_child(crafting_item_label)
 
-	var craft_specs: Array[Dictionary] = [
-		{"key":"scrap", "label":"SCRAP ORB  •  REROLL VALUES", "callback":_craft_scrap},
-		{"key":"mutation", "label":"MUTATION SHARD  •  SLAM COMMON → MAGIC", "callback":_craft_mutation},
-		{"key":"chaos", "label":"CHAOS TOKEN  •  REROLL NORMAL AFFIXES", "callback":_craft_chaos},
-		{"key":"mechanist", "label":"MECHANIST'S SEAL  •  REROLL MECHANIC", "callback":_craft_mechanist}
-	]
-	for spec: Dictionary in craft_specs:
-		var key: String = String(spec["key"])
-		var callback: Callable = spec["callback"] as Callable
-		var button := _make_button(String(spec["label"]), callback, Vector2(475.0, 42.0))
-		button.add_theme_font_size_override("font_size", 13)
-		crafting_buttons[key] = button
-		root.add_child(button)
+	var scrap_button := _make_button("SCRAP ORB  •  REROLL VALUES", _craft_scrap, Vector2(475.0, 40.0))
+	scrap_button.add_theme_font_size_override("font_size", 13)
+	crafting_buttons["scrap"] = scrap_button
+	root.add_child(scrap_button)
+
+	var mutation_button := _make_button("MUTATION SHARD  •  SLAM COMMON → MAGIC", _craft_mutation, Vector2(475.0, 40.0))
+	mutation_button.add_theme_font_size_override("font_size", 13)
+	crafting_buttons["mutation"] = mutation_button
+	root.add_child(mutation_button)
+
+	var chaos_button := _make_button("CHAOS TOKEN  •  REROLL NORMAL AFFIXES", _craft_chaos, Vector2(475.0, 40.0))
+	chaos_button.add_theme_font_size_override("font_size", 13)
+	crafting_buttons["chaos"] = chaos_button
+	root.add_child(chaos_button)
+
+	var mechanist_button := _make_button("MECHANIST'S SEAL  •  REROLL MECHANIC", _craft_mechanist, Vector2(475.0, 40.0))
+	mechanist_button.add_theme_font_size_override("font_size", 13)
+	crafting_buttons["mechanist"] = mechanist_button
+	root.add_child(mechanist_button)
 
 	crafting_feedback_label = _muted_label("Select a stash item, then decide how much you are willing to risk on it.")
 	crafting_feedback_label.custom_minimum_size = Vector2(475.0, 38.0)
@@ -812,7 +818,7 @@ func _open_floor_clear() -> void:
 	decision_open = true
 	decision_panel.visible = true
 	decision_title.text = "TIER %d  •  DEPTH %d CLEARED" % [claim_tier, depth]
-	decision_body.text = "Unsecured haul: ₵%d + %d Seals + %d gear\nEstimated run value: ₵%d\n\nExtract and bank it, or descend for more density, elites and loot." % [run_coins, run_seals, run_gear.size(), _current_run_value()]
+	decision_body.text = "Unsecured haul: ₵%d + %d Seals + %d gear + %d crafting mats\nEstimated run value: ₵%d\n\nExtract and bank it, or descend for more density, elites and loot." % [run_coins, run_seals, run_gear.size(), _crafting_inventory_count(run_crafting), _current_run_value()]
 	_set_decision_buttons(true, true)
 
 func _descend() -> void:
@@ -853,7 +859,7 @@ func _on_player_died() -> void:
 		child.queue_free()
 	decision_panel.visible = true
 	decision_title.text = "YOU GOT GREEDY"
-	decision_body.text = "The unsecured haul was lost.\n\nLost: ₵%d + %d Seals + %d gear\nReached depth %d after %d kills." % [run_coins, run_seals, run_gear.size(), depth, total_run_kills]
+	decision_body.text = "The unsecured haul was lost.\n\nLost: ₵%d + %d Seals + %d gear + %d crafting mats\nReached depth %d after %d kills." % [run_coins, run_seals, run_gear.size(), _crafting_inventory_count(run_crafting), depth, total_run_kills]
 	run_coins = 0
 	run_seals = 0
 	run_gear.clear()
@@ -2074,6 +2080,9 @@ func _craft_currency_name(key: String) -> String:
 func _crafting_inventory_value(inventory: Dictionary) -> int:
 	return int(inventory.get("scrap", 0)) * 60 + int(inventory.get("mutation", 0)) * 180 + int(inventory.get("chaos", 0)) * 600 + int(inventory.get("mechanist", 0)) * 1800
 
+func _crafting_inventory_count(inventory: Dictionary) -> int:
+	return int(inventory.get("scrap", 0)) + int(inventory.get("mutation", 0)) + int(inventory.get("chaos", 0)) + int(inventory.get("mechanist", 0))
+
 func _juice_density() -> void:
 	if juice_density < 5 and _spend_seal_for_juice():
 		juice_density += 1
@@ -2181,7 +2190,8 @@ func _load_save() -> void:
 	var crafting_variant: Variant = data.get("crafting", {})
 	if typeof(crafting_variant) == TYPE_DICTIONARY:
 		var loaded_crafting: Dictionary = crafting_variant as Dictionary
-		for currency_key: String in ["scrap", "mutation", "chaos", "mechanist"]:
+		var crafting_keys: Array[String] = ["scrap", "mutation", "chaos", "mechanist"]
+		for currency_key: String in crafting_keys:
 			stash_crafting[currency_key] = maxi(0, int(loaded_crafting.get(currency_key, 0)))
 	next_item_id = int(data.get("next_item_id", 1))
 	claim_tier = clampi(int(data.get("claim_tier", 1)), 1, 5)
