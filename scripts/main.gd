@@ -1116,6 +1116,137 @@ func _calculate_player_stats() -> Dictionary:
 	stats["move_speed"] = float(stats["move_speed"]) * float(stats["move_speed_mult"])
 	return stats
 
+func _calculate_player_stats_with_override(override_slot: String, override_item: Dictionary) -> Dictionary:
+	var stats: Dictionary = {
+		"damage": 18.0,
+		"attack_speed": 4.0,
+		"max_hp": 100.0,
+		"move_speed": 270.0,
+		"currency_find": 0.0,
+		"item_find": 0.0,
+		"weapon_type": "repeater",
+		"dash_cooldown_mult": 1.0,
+		"pickup_radius": 145.0,
+		"gear_pickup_heal": 0.0,
+		"kill_heal": 0.0,
+		"damage_taken_mult": 1.0,
+		"hurt_speed_bonus": 0.0,
+		"hurt_speed_duration": 0.0,
+		"point_blank_bonus": 0.0,
+		"point_blank_range": 125.0,
+		"knockback_mult": 1.0,
+		"projectile_radius_mult": 1.0,
+		"bonus_pierce": 0,
+		"bonus_projectiles": 0,
+		"projectile_damage_mult": 1.0,
+		"ricochet_count": 0,
+		"frenzy_on_kill": false,
+		"explosion_fraction": 0.0,
+		"treasure_room_bonus": 0.0,
+		"elite_currency_bonus": 0.0,
+		"normal_currency_penalty": 0.0,
+		"gear_duplicate_chance": 0.0,
+		"cheat_death": false,
+		"max_hp_mult": 1.0,
+		"move_speed_mult": 1.0
+	}
+	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
+	for slot_name: String in gear_slots:
+		var item: Dictionary = override_item if slot_name == override_slot else (equipped.get(slot_name, {}) as Dictionary)
+		stats["damage"] = float(stats["damage"]) + float(item.get("damage", 0.0))
+		stats["attack_speed"] = float(stats["attack_speed"]) + float(item.get("attack_speed", 0.0))
+		stats["max_hp"] = float(stats["max_hp"]) + float(item.get("max_hp", 0.0))
+		stats["move_speed"] = float(stats["move_speed"]) + float(item.get("move_speed", 0.0))
+		stats["currency_find"] = float(stats["currency_find"]) + float(item.get("currency_find", 0.0))
+		stats["item_find"] = float(stats["item_find"]) + float(item.get("item_find", 0.0))
+		if slot_name == "weapon" and not item.is_empty():
+			stats["weapon_type"] = String(item.get("weapon_type", "repeater"))
+		_apply_item_mechanics_to_stats(stats, item)
+
+	stats["max_hp"] = float(stats["max_hp"]) * float(stats["max_hp_mult"])
+	stats["move_speed"] = float(stats["move_speed"]) * float(stats["move_speed_mult"])
+	return stats
+
+func _weapon_output_bbcode(item: Dictionary) -> String:
+	var stats: Dictionary = _calculate_player_stats_with_override("weapon", item)
+	var weapon_type: String = String(stats.get("weapon_type", "repeater"))
+	var base_damage: float = float(stats.get("damage", 18.0))
+	var projectile_mult: float = float(stats.get("projectile_damage_mult", 1.0))
+	var bonus_projectiles: int = int(stats.get("bonus_projectiles", 0))
+	var attack_speed: float = float(stats.get("attack_speed", 4.0))
+	var hit_damage: float = base_damage * projectile_mult
+	var projectiles_per_attack: int = 1 + bonus_projectiles
+	var rate_mult: float = 1.0
+	var hit_label: String = "HIT"
+	var attack_label: String = "VOLLEY"
+
+	match weapon_type:
+		"scattergun":
+			hit_damage = base_damage * 0.42 * projectile_mult
+			projectiles_per_attack = 5 + bonus_projectiles * 2
+			rate_mult = 0.42
+			hit_label = "PELLET"
+			attack_label = "FULL BLAST"
+		"piercer":
+			hit_damage = base_damage * 2.40 * projectile_mult
+			rate_mult = 0.35
+			hit_label = "HIT"
+			attack_label = "VOLLEY"
+		"sprayer":
+			hit_damage = base_damage * 0.52 * projectile_mult
+			rate_mult = 1.80
+			hit_label = "BULLET"
+			attack_label = "VOLLEY"
+		_:
+			pass
+
+	var attacks_per_second: float = attack_speed * rate_mult
+	var attack_damage: float = hit_damage * float(projectiles_per_attack)
+	var sheet_dps: float = attack_damage * attacks_per_second
+	var current_weapon: Dictionary = equipped.get("weapon", {}) as Dictionary
+	var current_dps: float = _weapon_sheet_dps_for_item(current_weapon)
+	var dps_delta: float = sheet_dps - current_dps
+	var delta_text: String = ""
+	if not current_weapon.is_empty() and int(current_weapon.get("id", -999)) != int(item.get("id", -1)) and absf(dps_delta) >= 0.05:
+		var delta_color: String = "#72df8b" if dps_delta > 0.0 else "#ff6d79"
+		delta_text = "  [color=%s](%+.1f)[/color]" % [delta_color, dps_delta]
+
+	var text: String = "[color=#777f8d][font_size=11]WEAPON OUTPUT[/font_size][/color]"
+	text += "\n[font_size=22][b]%.1f DPS[/b][/font_size]%s" % [sheet_dps, delta_text]
+	text += "\n[color=#9aa2ae]%s[/color] [b]%.1f[/b]    [color=#9aa2ae]%s[/color] [b]%.1f[/b]" % [hit_label, hit_damage, attack_label, attack_damage]
+	text += "\n[color=#9aa2ae]ATTACK RATE[/color] [b]%.2f/s[/b]" % attacks_per_second
+	if projectiles_per_attack > 1:
+		text += "    [color=#9aa2ae]PROJECTILES[/color] [b]%d[/b]" % projectiles_per_attack
+	return text
+
+func _weapon_sheet_dps_for_item(item: Dictionary) -> float:
+	if item.is_empty():
+		return 0.0
+	var stats: Dictionary = _calculate_player_stats_with_override("weapon", item)
+	var weapon_type: String = String(stats.get("weapon_type", "repeater"))
+	var base_damage: float = float(stats.get("damage", 18.0))
+	var projectile_mult: float = float(stats.get("projectile_damage_mult", 1.0))
+	var bonus_projectiles: int = int(stats.get("bonus_projectiles", 0))
+	var attacks_per_second: float = float(stats.get("attack_speed", 4.0))
+	var hit_damage: float = base_damage * projectile_mult
+	var projectile_count: int = 1 + bonus_projectiles
+
+	match weapon_type:
+		"scattergun":
+			hit_damage = base_damage * 0.42 * projectile_mult
+			projectile_count = 5 + bonus_projectiles * 2
+			attacks_per_second *= 0.42
+		"piercer":
+			hit_damage = base_damage * 2.40 * projectile_mult
+			attacks_per_second *= 0.35
+		"sprayer":
+			hit_damage = base_damage * 0.52 * projectile_mult
+			attacks_per_second *= 1.80
+		_:
+			pass
+
+	return hit_damage * float(projectile_count) * attacks_per_second
+
 func _apply_item_mechanics_to_stats(stats: Dictionary, item: Dictionary) -> void:
 	var mechanics_variant: Variant = item.get("mechanics", [])
 	if typeof(mechanics_variant) != TYPE_ARRAY:
@@ -1577,13 +1708,16 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 	var text: String = "[font_size=18][color=%s][b]%s[/b][/color][/font_size]" % [color_hex, name_value]
 	text += "\n[color=#f6d05f][b]₵%d[/b][/color]   [color=#747b87]%s • %s • ilvl %d[/color]" % [value, rarity, type_text, item_level]
 
+	if slot == "weapon":
+		text += "\n\n" + _weapon_output_bbcode(item)
+
 	var implicit_variant: Variant = item.get("implicit", {})
 	if typeof(implicit_variant) == TYPE_DICTIONARY:
 		var implicit: Dictionary = implicit_variant as Dictionary
 		if not implicit.is_empty():
 			var implicit_stat: String = String(implicit.get("stat", ""))
 			var implicit_value: float = float(implicit.get("value", 0.0))
-			text += "\n\n[color=#777f8d][font_size=11]IMPLICIT[/font_size][/color]"
+			text += "\n\n[color=#777f8d][font_size=11]ITEM ROLLS[/font_size][/color]"
 			text += "\n[color=#e2c768][b]%s[/b][/color]" % _format_stat_value(implicit_stat, implicit_value)
 
 	var mechanics_variant: Variant = item.get("mechanics", [])
@@ -1605,7 +1739,7 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 	if typeof(affixes_variant) == TYPE_ARRAY:
 		var affix_array: Array = affixes_variant as Array
 		if not affix_array.is_empty():
-			text += "\n\n[color=#777f8d][font_size=11]AFFIXES[/font_size][/color]"
+			text += "\n\n[color=#777f8d][font_size=11]MODIFIERS[/font_size][/color]"
 			for affix_variant: Variant in affix_array:
 				if typeof(affix_variant) != TYPE_DICTIONARY:
 					continue
