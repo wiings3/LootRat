@@ -317,13 +317,13 @@ func _draw() -> void:
 			var flash_color := Color(1.0, 0.78, 0.32, 0.80)
 			match weapon_core:
 				"duelist":
-					draw_line(Vector2(22.0, 0.0), Vector2(115.0 * melee_range_mult, 0.0), flash_color, 7.0)
+					draw_line(Vector2(22.0, 0.0), Vector2(132.0 * melee_range_mult, 0.0), flash_color, 7.0)
 				"whirlwind":
-					draw_arc(Vector2.ZERO, 78.0 * melee_range_mult, 0.0, TAU, 42, flash_color, 5.0)
+					draw_arc(Vector2.ZERO, 94.0 * melee_range_mult, 0.0, TAU, 42, flash_color, 5.0)
 				"throwing":
 					draw_line(Vector2(22.0, 0.0), Vector2(48.0, 0.0), flash_color, 4.0)
 				_:
-					draw_arc(Vector2.ZERO, 82.0 * melee_range_mult, deg_to_rad(-52.5), deg_to_rad(52.5), 20, flash_color, 6.0)
+					draw_arc(Vector2.ZERO, 98.0 * melee_range_mult, deg_to_rad(-55.0), deg_to_rad(55.0), 20, flash_color, 6.0)
 	else:
 		var gun_color := Color(0.85, 0.88, 0.92)
 		match weapon_core:
