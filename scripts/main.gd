@@ -2757,12 +2757,13 @@ func _load_save() -> void:
 	var data: Dictionary = parsed as Dictionary
 	stash_coins = int(data.get("coins", 0))
 	stash_seals = int(data.get("seals", 5))
-	var cores_variant: Variant = data.get("cores", {})
-	if typeof(cores_variant) == TYPE_DICTIONARY:
-		var loaded_cores: Dictionary = cores_variant as Dictionary
-		var core_keys: Array[String] = ["repeater", "scatter", "piercer", "sprayer"]
-		for core_key: String in core_keys:
-			stash_cores[core_key] = maxi(0, int(loaded_cores.get(core_key, 0)))
+	if data.has("cores"):
+		var cores_variant: Variant = data.get("cores", {})
+		if typeof(cores_variant) == TYPE_DICTIONARY:
+			var loaded_cores: Dictionary = cores_variant as Dictionary
+			var core_keys: Array[String] = ["repeater", "scatter", "piercer", "sprayer"]
+			for core_key: String in core_keys:
+				stash_cores[core_key] = maxi(0, int(loaded_cores.get(core_key, 0)))
 	var crafting_variant: Variant = data.get("crafting", {})
 	if typeof(crafting_variant) == TYPE_DICTIONARY:
 		var loaded_crafting: Dictionary = crafting_variant as Dictionary
