@@ -2539,6 +2539,7 @@ func _refresh_crafting_panel() -> void:
 		for button_variant: Variant in core_buttons.values():
 			if button_variant is Button:
 				(button_variant as Button).disabled = true
+				(button_variant as Button).visible = false
 		return
 
 	var item: Dictionary = stash_gear[index]
@@ -2552,8 +2553,10 @@ func _refresh_crafting_panel() -> void:
 		var core_button_variant: Variant = core_buttons.get(core_id)
 		if core_button_variant is Button:
 			var core_button := core_button_variant as Button
-			core_button.text = "%s  x%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), "  [SLOTTED]" if is_weapon and core_id == current_core else ""]
-			core_button.disabled = not is_weapon or _core_archetype(core_id) != weapon_archetype or core_id == current_core or int(stash_cores.get(core_id, 0)) <= 0
+			var compatible: bool = is_weapon and _core_archetype(core_id) == weapon_archetype
+			core_button.visible = compatible
+			core_button.text = "%s  x%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), "  [SLOTTED]" if compatible and core_id == current_core else ""]
+			core_button.disabled = not compatible or core_id == current_core or int(stash_cores.get(core_id, 0)) <= 0
 	var affix_count: int = _item_affix_count(item)
 	var mechanic_count: int = _item_mechanic_count(item)
 
