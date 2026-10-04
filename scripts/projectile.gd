@@ -112,5 +112,6 @@ func _draw() -> void:
 		"scatter": outer = Color(1.0, 0.52, 0.18)
 		"piercer": outer = Color(0.72, 0.38, 1.0)
 		"sprayer": outer = Color(0.28, 1.0, 0.55)
+		"throwing": outer = Color(1.0, 0.66, 0.26)
 	draw_circle(Vector2.ZERO, radius, outer)
 	draw_circle(Vector2.ZERO, maxf(1.5, radius * 0.42), Color.WHITE)
