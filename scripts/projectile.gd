@@ -8,7 +8,7 @@ var life: float = 1.25
 var pierces: int = 0
 var radius: float = 5.0
 var knockback_force: float = 110.0
-var weapon_type: String = "repeater"
+var core_id: String = "repeater"
 var origin_position: Vector2 = Vector2.ZERO
 var point_blank_bonus: float = 0.0
 var point_blank_range: float = 125.0
@@ -108,8 +108,8 @@ func _spawn_explosion_visual(center: Vector2) -> void:
 
 func _draw() -> void:
 	var outer := Color(1.0, 0.86, 0.2)
-	match weapon_type:
-		"scattergun": outer = Color(1.0, 0.52, 0.18)
+	match core_id:
+		"scatter": outer = Color(1.0, 0.52, 0.18)
 		"piercer": outer = Color(0.72, 0.38, 1.0)
 		"sprayer": outer = Color(0.28, 1.0, 0.55)
 	draw_circle(Vector2.ZERO, radius, outer)
