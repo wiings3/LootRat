@@ -67,7 +67,7 @@ var stash_coins: int = 0
 var stash_seals: int = 5
 var stash_gear: Array[Dictionary] = []
 var stash_crafting: Dictionary = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
-var stash_cores: Dictionary = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1}
+var stash_cores: Dictionary = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1, "cleaver": 1, "duelist": 1, "whirlwind": 1, "throwing": 1}
 var equipped: Dictionary = {"weapon": {}, "armor": {}, "charm": {}}
 var next_item_id: int = 1
 
@@ -75,7 +75,7 @@ var run_coins: int = 0
 var run_seals: int = 0
 var run_gear: Array[Dictionary] = []
 var run_crafting: Dictionary = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
-var run_cores: Dictionary = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0}
+var run_cores: Dictionary = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0, "cleaver": 0, "duelist": 0, "whirlwind": 0, "throwing": 0}
 
 var juice_density: int = 0
 var juice_quantity: int = 0
@@ -548,10 +548,14 @@ func _build_crafting_panel() -> void:
 	actions.add_child(core_grid)
 
 	var core_specs: Array[Dictionary] = [
-		{"id":"repeater", "label":"REPEATER"},
-		{"id":"scatter", "label":"SCATTER"},
-		{"id":"piercer", "label":"PIERCER"},
-		{"id":"sprayer", "label":"SPRAYER"}
+		{"id":"repeater", "label":"GUN • REPEATER"},
+		{"id":"scatter", "label":"GUN • SCATTER"},
+		{"id":"piercer", "label":"GUN • PIERCER"},
+		{"id":"sprayer", "label":"GUN • SPRAYER"},
+		{"id":"cleaver", "label":"BLADE • CLEAVER"},
+		{"id":"duelist", "label":"BLADE • DUELIST"},
+		{"id":"whirlwind", "label":"BLADE • WHIRL"},
+		{"id":"throwing", "label":"BLADE • THROW"}
 	]
 	for spec: Dictionary in core_specs:
 		var core_id: String = String(spec["id"])
@@ -751,7 +755,7 @@ func _start_claim() -> void:
 	run_seals = 0
 	run_gear.clear()
 	run_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
-	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0}
+	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0, "cleaver": 0, "duelist": 0, "whirlwind": 0, "throwing": 0}
 	total_run_kills = 0
 	feed_lines.clear()
 	hub_panel.visible = false
@@ -948,7 +952,7 @@ func _spawn_core_roll(position_value: Vector2, quantity_mult: float, elite: bool
 	var chance: float = 0.035 * quantity_mult * (2.8 if elite else 1.0)
 	if rng.randf() >= chance:
 		return
-	var core_ids: Array[String] = ["repeater", "scatter", "piercer", "sprayer"]
+	var core_ids: Array[String] = ["repeater", "scatter", "piercer", "sprayer", "cleaver", "duelist", "whirlwind", "throwing"]
 	var core_id: String = core_ids[rng.randi_range(0, core_ids.size() - 1)]
 	_spawn_pickup("core", 1, {"core": core_id}, position_value)
 
@@ -1035,7 +1039,7 @@ func _extract_run() -> void:
 	run_seals = 0
 	run_gear.clear()
 	run_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
-	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0}
+	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0, "cleaver": 0, "duelist": 0, "whirlwind": 0, "throwing": 0}
 	_clear_juice()
 	_enter_hub()
 
@@ -1057,7 +1061,7 @@ func _on_player_died() -> void:
 	run_seals = 0
 	run_gear.clear()
 	run_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
-	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0}
+	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0, "cleaver": 0, "duelist": 0, "whirlwind": 0, "throwing": 0}
 	_set_decision_buttons(false, false)
 
 	var root := decision_panel.get_child(0) as VBoxContainer
@@ -1148,7 +1152,9 @@ func _calculate_player_stats() -> Dictionary:
 		"gear_duplicate_chance": 0.0,
 		"cheat_death": false,
 		"max_hp_mult": 1.0,
-		"move_speed_mult": 1.0
+		"move_speed_mult": 1.0,
+		"melee_damage_mult": 1.0,
+		"melee_range_mult": 1.0
 	}
 	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
 	for slot_name: String in gear_slots:
@@ -1201,7 +1207,9 @@ func _calculate_player_stats_with_override(override_slot: String, override_item:
 		"gear_duplicate_chance": 0.0,
 		"cheat_death": false,
 		"max_hp_mult": 1.0,
-		"move_speed_mult": 1.0
+		"move_speed_mult": 1.0,
+		"melee_damage_mult": 1.0,
+		"melee_range_mult": 1.0
 	}
 	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
 	for slot_name: String in gear_slots:
@@ -1223,6 +1231,10 @@ func _calculate_player_stats_with_override(override_slot: String, override_item:
 
 func _weapon_output_bbcode(item: Dictionary) -> String:
 	var stats: Dictionary = _calculate_player_stats_with_override("weapon", item)
+	var archetype: String = String(stats.get("weapon_archetype", "gun"))
+	if archetype == "blade":
+		return _blade_output_bbcode(item, stats)
+
 	var core_id: String = String(stats.get("weapon_core", "repeater"))
 	var base_damage: float = float(stats.get("damage", 18.0))
 	var projectile_mult: float = float(stats.get("projectile_damage_mult", 1.0))
@@ -1244,13 +1256,10 @@ func _weapon_output_bbcode(item: Dictionary) -> String:
 		"piercer":
 			hit_damage = base_damage * 2.40 * projectile_mult
 			rate_mult = 0.35
-			hit_label = "HIT"
-			attack_label = "VOLLEY"
 		"sprayer":
 			hit_damage = base_damage * 0.52 * projectile_mult
 			rate_mult = 1.80
 			hit_label = "BULLET"
-			attack_label = "VOLLEY"
 		_:
 			pass
 
@@ -1260,10 +1269,7 @@ func _weapon_output_bbcode(item: Dictionary) -> String:
 	var current_weapon: Dictionary = equipped.get("weapon", {}) as Dictionary
 	var current_dps: float = _weapon_sheet_dps_for_item(current_weapon)
 	var dps_delta: float = sheet_dps - current_dps
-	var delta_text: String = ""
-	if not current_weapon.is_empty() and int(current_weapon.get("id", -999)) != int(item.get("id", -1)) and absf(dps_delta) >= 0.05:
-		var delta_color: String = "#72df8b" if dps_delta > 0.0 else "#ff6d79"
-		delta_text = "  [color=%s](%+.1f)[/color]" % [delta_color, dps_delta]
+	var delta_text: String = _weapon_dps_delta_text(item, dps_delta)
 
 	var text: String = "[color=#777f8d][font_size=11]WEAPON OUTPUT[/font_size][/color]"
 	text += "\n[font_size=22][b]%.1f DPS[/b][/font_size]%s" % [sheet_dps, delta_text]
@@ -1272,6 +1278,59 @@ func _weapon_output_bbcode(item: Dictionary) -> String:
 	if projectiles_per_attack > 1:
 		text += "    [color=#9aa2ae]PROJECTILES[/color] [b]%d[/b]" % projectiles_per_attack
 	return text
+
+func _blade_output_bbcode(item: Dictionary, stats: Dictionary) -> String:
+	var core_id: String = String(stats.get("weapon_core", "cleaver"))
+	var base_damage: float = float(stats.get("damage", 18.0))
+	var melee_mult: float = float(stats.get("melee_damage_mult", 1.0))
+	var range_mult: float = float(stats.get("melee_range_mult", 1.0))
+	var attack_speed: float = float(stats.get("attack_speed", 4.0))
+	var hit_damage: float = base_damage * melee_mult
+	var rate_mult: float = 1.0
+	var reach: float = 82.0 * range_mult
+	var shape_text: String = "105° ARC"
+
+	match core_id:
+		"duelist":
+			hit_damage *= 0.90
+			rate_mult = 1.35
+			reach = 115.0 * range_mult
+			shape_text = "35° STAB"
+		"whirlwind":
+			hit_damage *= 0.80
+			rate_mult = 0.62
+			reach = 78.0 * range_mult
+			shape_text = "360° SPIN"
+		"throwing":
+			hit_damage *= 1.15
+			rate_mult = 0.80
+			reach = 0.0
+			shape_text = "PIERCING THROW"
+		_:
+			hit_damage *= 1.35
+			rate_mult = 0.72
+
+	var attacks_per_second: float = attack_speed * rate_mult
+	var sheet_dps: float = hit_damage * attacks_per_second
+	var current_weapon: Dictionary = equipped.get("weapon", {}) as Dictionary
+	var current_dps: float = _weapon_sheet_dps_for_item(current_weapon)
+	var dps_delta: float = sheet_dps - current_dps
+	var delta_text: String = _weapon_dps_delta_text(item, dps_delta)
+
+	var text: String = "[color=#777f8d][font_size=11]BLADE OUTPUT[/font_size][/color]"
+	text += "\n[font_size=22][b]%.1f DPS[/b][/font_size]%s" % [sheet_dps, delta_text]
+	text += "\n[color=#9aa2ae]HIT[/color] [b]%.1f[/b]    [color=#9aa2ae]RATE[/color] [b]%.2f/s[/b]" % [hit_damage, attacks_per_second]
+	text += "\n[color=#9aa2ae]PATTERN[/color] [b]%s[/b]" % shape_text
+	if reach > 0.0:
+		text += "    [color=#9aa2ae]REACH[/color] [b]%.0f[/b]" % reach
+	return text
+
+func _weapon_dps_delta_text(item: Dictionary, dps_delta: float) -> String:
+	var current_weapon: Dictionary = equipped.get("weapon", {}) as Dictionary
+	if current_weapon.is_empty() or int(current_weapon.get("id", -999)) == int(item.get("id", -1)) or absf(dps_delta) < 0.05:
+		return ""
+	var delta_color: String = "#72df8b" if dps_delta > 0.0 else "#ff6d79"
+	return "  [color=%s](%+.1f)[/color]" % [delta_color, dps_delta]
 
 func _weapon_sheet_dps_for_item(item: Dictionary) -> float:
 	if item.is_empty():
@@ -1339,14 +1398,32 @@ func _output_delta(value: float, current_value: float, lower_is_better: bool = f
 	return " [color=%s](%s)[/color]" % [color_hex, formatted]
 
 func _weapon_sheet_dps_from_stats(stats: Dictionary) -> float:
+	var archetype: String = String(stats.get("weapon_archetype", "gun"))
 	var core_id: String = String(stats.get("weapon_core", "repeater"))
 	var base_damage: float = float(stats.get("damage", 18.0))
+	var attacks_per_second: float = float(stats.get("attack_speed", 4.0))
+
+	if archetype == "blade":
+		var hit_damage: float = base_damage * float(stats.get("melee_damage_mult", 1.0))
+		match core_id:
+			"duelist":
+				hit_damage *= 0.90
+				attacks_per_second *= 1.35
+			"whirlwind":
+				hit_damage *= 0.80
+				attacks_per_second *= 0.62
+			"throwing":
+				hit_damage *= 1.15
+				attacks_per_second *= 0.80
+			_:
+				hit_damage *= 1.35
+				attacks_per_second *= 0.72
+		return hit_damage * attacks_per_second
+
 	var projectile_mult: float = float(stats.get("projectile_damage_mult", 1.0))
 	var bonus_projectiles: int = int(stats.get("bonus_projectiles", 0))
-	var attacks_per_second: float = float(stats.get("attack_speed", 4.0))
 	var hit_damage: float = base_damage * projectile_mult
 	var projectile_count: int = 1 + bonus_projectiles
-
 	match core_id:
 		"scatter":
 			hit_damage = base_damage * 0.42 * projectile_mult
@@ -1422,6 +1499,12 @@ func _apply_item_mechanics_to_stats(stats: Dictionary, item: Dictionary) -> void
 				stats["damage_taken_mult"] = float(stats["damage_taken_mult"]) * 1.30
 			"double_drop":
 				stats["gear_duplicate_chance"] = float(stats["gear_duplicate_chance"]) + 0.10
+			"keen_edge":
+				stats["melee_damage_mult"] = float(stats["melee_damage_mult"]) * 1.18
+			"long_reach":
+				stats["melee_range_mult"] = float(stats["melee_range_mult"]) * 1.22
+			"brutal_edge":
+				stats["knockback_mult"] = float(stats["knockback_mult"]) * 1.65
 
 func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 	var gear_slots: Array[String] = ["weapon", "armor", "charm"]
@@ -1437,8 +1520,8 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 		"depth": item_depth,
 		"item_level": item_level,
 		"base_name": String(base.get("name", "Gear")),
-		"weapon_archetype": "gun" if slot == "weapon" else "",
-		"core_id": _random_gun_core() if slot == "weapon" else "",
+		"weapon_archetype": String(base.get("weapon_archetype", "")) if slot == "weapon" else "",
+		"core_id": _random_core_for_archetype(String(base.get("weapon_archetype", "gun"))) if slot == "weapon" else "",
 		"damage": 0.0,
 		"attack_speed": 0.0,
 		"max_hp": 0.0,
@@ -1478,7 +1561,7 @@ func _generate_gear(item_depth: int, from_elite: bool) -> Dictionary:
 	var used_mechanics: Array[String] = []
 	for mechanic_index in range(mechanic_count):
 		var prefer_high: bool = rarity == "Gilded" and mechanic_index == 0
-		var rolled_mechanic: Dictionary = _roll_mechanic(slot, used_mechanics, prefer_high)
+		var rolled_mechanic: Dictionary = _roll_mechanic(slot, used_mechanics, prefer_high, String(item.get("weapon_archetype", "")))
 		if rolled_mechanic.is_empty():
 			break
 		mechanics.append(rolled_mechanic)
@@ -1567,10 +1650,14 @@ func _roll_item_base(slot: String) -> Dictionary:
 	match slot:
 		"weapon":
 			bases = [
-				{"name":"Scrap Gun", "implicit_stat":"damage", "implicit_value":2.5},
-				{"name":"Cutdown Gun", "implicit_stat":"damage", "implicit_value":4.0},
-				{"name":"Heavy-Frame Gun", "implicit_stat":"damage", "implicit_value":6.0},
-				{"name":"Rapid-Frame Gun", "implicit_stat":"attack_speed", "implicit_value":0.35}
+				{"name":"Scrap Gun", "weapon_archetype":"gun", "implicit_stat":"damage", "implicit_value":2.5},
+				{"name":"Cutdown Gun", "weapon_archetype":"gun", "implicit_stat":"damage", "implicit_value":4.0},
+				{"name":"Heavy-Frame Gun", "weapon_archetype":"gun", "implicit_stat":"damage", "implicit_value":6.0},
+				{"name":"Rapid-Frame Gun", "weapon_archetype":"gun", "implicit_stat":"attack_speed", "implicit_value":0.35},
+				{"name":"Scrap Blade", "weapon_archetype":"blade", "implicit_stat":"damage", "implicit_value":3.0},
+				{"name":"Long Blade", "weapon_archetype":"blade", "implicit_stat":"damage", "implicit_value":4.5},
+				{"name":"Heavy Blade", "weapon_archetype":"blade", "implicit_stat":"damage", "implicit_value":6.5},
+				{"name":"Quick Blade", "weapon_archetype":"blade", "implicit_stat":"attack_speed", "implicit_value":0.30}
 			]
 		"armor":
 			bases = [
@@ -1588,15 +1675,26 @@ func _roll_item_base(slot: String) -> Dictionary:
 			]
 	return bases[rng.randi_range(0, bases.size() - 1)].duplicate(true)
 
-func _random_gun_core() -> String:
+func _random_core_for_archetype(archetype: String) -> String:
 	var cores: Array[String] = ["repeater", "scatter", "piercer", "sprayer"]
+	if archetype == "blade":
+		cores = ["cleaver", "duelist", "whirlwind", "throwing"]
 	return cores[rng.randi_range(0, cores.size() - 1)]
+
+func _core_archetype(core_id: String) -> String:
+	if ["cleaver", "duelist", "whirlwind", "throwing"].has(core_id):
+		return "blade"
+	return "gun"
 
 func _core_name(core_id: String) -> String:
 	match core_id:
 		"scatter": return "Scatter"
 		"piercer": return "Piercer"
 		"sprayer": return "Sprayer"
+		"cleaver": return "Cleaver"
+		"duelist": return "Duelist"
+		"whirlwind": return "Whirlwind"
+		"throwing": return "Throwing"
 		_: return "Repeater"
 
 func _core_description(core_id: String) -> String:
@@ -1604,6 +1702,10 @@ func _core_description(core_id: String) -> String:
 		"scatter": return "Five-pellet close-range blast"
 		"piercer": return "Slow heavy shot with innate pierce"
 		"sprayer": return "Very high fire rate with lower bullet damage"
+		"cleaver": return "Slow, wide, heavy frontal sweep"
+		"duelist": return "Fast narrow stab with long melee reach"
+		"whirlwind": return "360° spin that hits everything around you"
+		"throwing": return "Ranged piercing blade throw"
 		_: return "Reliable automatic single-projectile fire"
 
 func _affix_candidates(slot: String) -> Array[String]:
@@ -1615,20 +1717,28 @@ func _affix_candidates(slot: String) -> Array[String]:
 		_:
 			return ["damage", "max_hp", "move_speed", "currency_find", "item_find"]
 
-func _mechanic_pool(slot: String) -> Array[Dictionary]:
+func _mechanic_pool(slot: String, weapon_archetype: String = "") -> Array[Dictionary]:
 	var pool: Array[Dictionary] = []
 	match slot:
 		"weapon":
-			pool = [
-				{"id":"point_blank", "tier":1, "name":"Point Blank", "prefix":"Close-Quarters", "description":"+45% projectile damage within 125 px."},
-				{"id":"heavy_rounds", "tier":1, "name":"Heavy Rounds", "prefix":"Heavy", "description":"Projectiles are larger and deal 90% more knockback."},
-				{"id":"split_chamber", "tier":2, "name":"Split Chamber", "prefix":"Split", "description":"Fires extra projectiles, but each projectile deals less damage."},
-				{"id":"bore_rounds", "tier":2, "name":"Bore Rounds", "prefix":"Boring", "description":"Projectiles pierce 2 additional enemies."},
-				{"id":"ricochet", "tier":3, "name":"Ricochet", "prefix":"Ricocheting", "description":"Projectiles bounce to 1 nearby enemy after their final hit."},
-				{"id":"kill_frenzy", "tier":3, "name":"Kill Frenzy", "prefix":"Frenzied", "description":"Kills grant +8% fire rate for 3 sec, stacking up to 5 times."},
-				{"id":"explosive_rounds", "tier":4, "name":"Explosive Rounds", "prefix":"Explosive", "description":"Projectile kills explode for 45% of the killing shot's damage."},
-				{"id":"kings_barrage", "tier":5, "name":"King's Barrage", "prefix":"Barrage", "description":"Fires 2 additional projectiles with reduced damage per projectile."}
-			]
+			if weapon_archetype == "blade":
+				pool = [
+					{"id":"keen_edge", "tier":1, "name":"Keen Edge", "prefix":"Keen", "description":"+18% melee damage."},
+					{"id":"long_reach", "tier":1, "name":"Long Reach", "prefix":"Long-Reach", "description":"+22% melee reach."},
+					{"id":"brutal_edge", "tier":2, "name":"Brutal Edge", "prefix":"Brutal", "description":"+65% melee knockback."},
+					{"id":"kill_frenzy", "tier":3, "name":"Kill Frenzy", "prefix":"Frenzied", "description":"Kills grant +8% attack rate for 3 sec, stacking up to 5 times."}
+				]
+			else:
+				pool = [
+					{"id":"point_blank", "tier":1, "name":"Point Blank", "prefix":"Close-Quarters", "description":"+45% projectile damage within 125 px."},
+					{"id":"heavy_rounds", "tier":1, "name":"Heavy Rounds", "prefix":"Heavy", "description":"Projectiles are larger and deal 90% more knockback."},
+					{"id":"split_chamber", "tier":2, "name":"Split Chamber", "prefix":"Split", "description":"Fires extra projectiles, but each projectile deals less damage."},
+					{"id":"bore_rounds", "tier":2, "name":"Bore Rounds", "prefix":"Boring", "description":"Projectiles pierce 2 additional enemies."},
+					{"id":"ricochet", "tier":3, "name":"Ricochet", "prefix":"Ricocheting", "description":"Projectiles bounce to 1 nearby enemy after their final hit."},
+					{"id":"kill_frenzy", "tier":3, "name":"Kill Frenzy", "prefix":"Frenzied", "description":"Kills grant +8% fire rate for 3 sec, stacking up to 5 times."},
+					{"id":"explosive_rounds", "tier":4, "name":"Explosive Rounds", "prefix":"Explosive", "description":"Projectile kills explode for 45% of the killing shot's damage."},
+					{"id":"kings_barrage", "tier":5, "name":"King's Barrage", "prefix":"Barrage", "description":"Fires 2 additional projectiles with reduced damage per projectile."}
+				]
 		"armor":
 			pool = [
 				{"id":"quickstep", "tier":1, "name":"Quickstep", "prefix":"Quickstep", "description":"Dash cooldown is 22% shorter."},
@@ -1650,10 +1760,10 @@ func _mechanic_pool(slot: String) -> Array[Dictionary]:
 			]
 	return pool
 
-func _roll_mechanic(slot: String, used_ids: Array[String], prefer_high: bool = false) -> Dictionary:
+func _roll_mechanic(slot: String, used_ids: Array[String], prefer_high: bool = false, weapon_archetype: String = "") -> Dictionary:
 	var eligible: Array[Dictionary] = []
 	var preferred: Array[Dictionary] = []
-	for mechanic: Dictionary in _mechanic_pool(slot):
+	for mechanic: Dictionary in _mechanic_pool(slot, weapon_archetype):
 		var mechanic_id: String = String(mechanic.get("id", ""))
 		var mechanic_tier: int = int(mechanic.get("tier", 1))
 		if mechanic_tier > claim_tier or used_ids.has(mechanic_id):
@@ -1834,7 +1944,7 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 	var slot: String = String(item.get("slot", "gear"))
 	var type_text: String = base_name
 	if slot == "weapon":
-		type_text = "Gun"
+		type_text = String(item.get("weapon_archetype", "gun")).capitalize()
 
 	if compact:
 		return "[color=%s][b]%s[/b][/color]\n[color=#737c8d]%s • ilvl %d[/color]" % [color_hex, name_value, type_text, item_level]
@@ -1918,6 +2028,9 @@ func _compact_mechanic_description(mechanic: Dictionary) -> String:
 		"double_drop": return "10% chance for an extra gear drop"
 		"explosive_rounds": return "Kills explode for 45% of shot damage"
 		"kings_barrage": return "+2 projectiles • lower per-shot damage"
+		"keen_edge": return "+18% melee damage"
+		"long_reach": return "+22% melee reach"
+		"brutal_edge": return "+65% melee knockback"
 		_: return String(mechanic.get("description", ""))
 
 func _rarity_color_hex(rarity: String) -> String:
@@ -2415,7 +2528,7 @@ func _close_crafting_panel() -> void:
 func _refresh_crafting_panel() -> void:
 	if crafting_panel == null:
 		return
-	crafting_currency_label.text = "[color=#d5d9e2]● %d Scrap[/color]  [color=#76dc96]◆ %d Mutation[/color]  [color=#d878ff]● %d Chaos[/color]  [color=#ffb85c]◆ %d Mechanist[/color]\n[color=#6fd4ff]CORES[/color]  R:%d  S:%d  P:%d  Sp:%d" % [int(stash_crafting.get("scrap", 0)), int(stash_crafting.get("mutation", 0)), int(stash_crafting.get("chaos", 0)), int(stash_crafting.get("mechanist", 0)), int(stash_cores.get("repeater", 0)), int(stash_cores.get("scatter", 0)), int(stash_cores.get("piercer", 0)), int(stash_cores.get("sprayer", 0))]
+	crafting_currency_label.text = "[color=#d5d9e2]● %d Scrap[/color]  [color=#76dc96]◆ %d Mutation[/color]  [color=#d878ff]● %d Chaos[/color]  [color=#ffb85c]◆ %d Mechanist[/color]\n[color=#6fd4ff]GUN[/color] R:%d S:%d P:%d Sp:%d    [color=#ffb86a]BLADE[/color] C:%d D:%d W:%d T:%d" % [int(stash_crafting.get("scrap", 0)), int(stash_crafting.get("mutation", 0)), int(stash_crafting.get("chaos", 0)), int(stash_crafting.get("mechanist", 0)), int(stash_cores.get("repeater", 0)), int(stash_cores.get("scatter", 0)), int(stash_cores.get("piercer", 0)), int(stash_cores.get("sprayer", 0)), int(stash_cores.get("cleaver", 0)), int(stash_cores.get("duelist", 0)), int(stash_cores.get("whirlwind", 0)), int(stash_cores.get("throwing", 0))]
 
 	var index: int = _find_stash_item_index(selected_stash_item_id)
 	if index < 0:
@@ -2431,15 +2544,16 @@ func _refresh_crafting_panel() -> void:
 	var item: Dictionary = stash_gear[index]
 	crafting_item_label.text = "[color=#8d96a6]WORKING ITEM[/color]\n%s" % _item_to_bbcode(item)
 	var rarity: String = String(item.get("rarity", "Common"))
-	var is_gun: bool = String(item.get("slot", "")) == "weapon" and String(item.get("weapon_archetype", "gun")) == "gun"
+	var is_weapon: bool = String(item.get("slot", "")) == "weapon"
+	var weapon_archetype: String = String(item.get("weapon_archetype", "gun"))
 	var current_core: String = String(item.get("core_id", "repeater"))
 	for core_id_variant: Variant in core_buttons.keys():
 		var core_id: String = String(core_id_variant)
 		var core_button_variant: Variant = core_buttons.get(core_id)
 		if core_button_variant is Button:
 			var core_button := core_button_variant as Button
-			core_button.text = "%s  x%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), "  [SLOTTED]" if is_gun and core_id == current_core else ""]
-			core_button.disabled = not is_gun or core_id == current_core or int(stash_cores.get(core_id, 0)) <= 0
+			core_button.text = "%s  x%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), "  [SLOTTED]" if is_weapon and core_id == current_core else ""]
+			core_button.disabled = not is_weapon or _core_archetype(core_id) != weapon_archetype or core_id == current_core or int(stash_cores.get(core_id, 0)) <= 0
 	var affix_count: int = _item_affix_count(item)
 	var mechanic_count: int = _item_mechanic_count(item)
 
@@ -2465,7 +2579,10 @@ func _slot_core(core_id: String) -> void:
 	if index < 0 or int(stash_cores.get(core_id, 0)) <= 0:
 		return
 	var item: Dictionary = stash_gear[index]
-	if String(item.get("slot", "")) != "weapon" or String(item.get("weapon_archetype", "gun")) != "gun":
+	if String(item.get("slot", "")) != "weapon":
+		return
+	var weapon_archetype: String = String(item.get("weapon_archetype", "gun"))
+	if _core_archetype(core_id) != weapon_archetype:
 		return
 	var old_core: String = String(item.get("core_id", "repeater"))
 	if old_core == core_id:
@@ -2514,7 +2631,7 @@ func _craft_mutation() -> void:
 
 	item["rarity"] = "Magic"
 	var mechanics: Array[Dictionary] = []
-	var mechanic: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), [])
+	var mechanic: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), [], false, String(item.get("weapon_archetype", "")))
 	if not mechanic.is_empty():
 		mechanics.append(mechanic)
 	item["mechanics"] = mechanics
@@ -2581,7 +2698,7 @@ func _craft_mechanist() -> void:
 		if i == target_index or typeof(mechanics[i]) != TYPE_DICTIONARY:
 			continue
 		used_ids.append(String((mechanics[i] as Dictionary).get("id", "")))
-	var replacement: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), used_ids, true)
+	var replacement: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), used_ids, true, String(item.get("weapon_archetype", "")))
 	if replacement.is_empty():
 		return
 	mechanics[target_index] = replacement
@@ -2650,7 +2767,11 @@ func _core_inventory_value(inventory: Dictionary) -> int:
 	return _core_inventory_count(inventory) * 250
 
 func _core_inventory_count(inventory: Dictionary) -> int:
-	return int(inventory.get("repeater", 0)) + int(inventory.get("scatter", 0)) + int(inventory.get("piercer", 0)) + int(inventory.get("sprayer", 0))
+	var total: int = 0
+	var core_ids: Array[String] = ["repeater", "scatter", "piercer", "sprayer", "cleaver", "duelist", "whirlwind", "throwing"]
+	for core_id: String in core_ids:
+		total += int(inventory.get(core_id, 0))
+	return total
 
 func _juice_density() -> void:
 	if juice_density < 5 and _spend_seal_for_juice():
@@ -2761,9 +2882,17 @@ func _load_save() -> void:
 		var cores_variant: Variant = data.get("cores", {})
 		if typeof(cores_variant) == TYPE_DICTIONARY:
 			var loaded_cores: Dictionary = cores_variant as Dictionary
-			var core_keys: Array[String] = ["repeater", "scatter", "piercer", "sprayer"]
+			var core_keys: Array[String] = ["repeater", "scatter", "piercer", "sprayer", "cleaver", "duelist", "whirlwind", "throwing"]
 			for core_key: String in core_keys:
 				stash_cores[core_key] = maxi(0, int(loaded_cores.get(core_key, 0)))
+	if data.has("cores"):
+		var blade_seed_keys: Array[String] = ["cleaver", "duelist", "whirlwind", "throwing"]
+		var saved_cores_variant: Variant = data.get("cores", {})
+		if typeof(saved_cores_variant) == TYPE_DICTIONARY:
+			var saved_cores: Dictionary = saved_cores_variant as Dictionary
+			for blade_core: String in blade_seed_keys:
+				if not saved_cores.has(blade_core):
+					stash_cores[blade_core] = 1
 	var crafting_variant: Variant = data.get("crafting", {})
 	if typeof(crafting_variant) == TYPE_DICTIONARY:
 		var loaded_crafting: Dictionary = crafting_variant as Dictionary
@@ -2800,7 +2929,7 @@ func _wipe_save() -> void:
 	stash_seals = 5
 	stash_gear.clear()
 	stash_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
-	stash_cores = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1}
+	stash_cores = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1, "cleaver": 1, "duelist": 1, "whirlwind": 1, "throwing": 1}
 	equipped = {"weapon": {}, "armor": {}, "charm": {}}
 	next_item_id = 1
 	selected_stash_item_id = -1
