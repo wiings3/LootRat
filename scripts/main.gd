@@ -1222,7 +1222,69 @@ func _weapon_output_bbcode(item: Dictionary) -> String:
 func _weapon_sheet_dps_for_item(item: Dictionary) -> float:
 	if item.is_empty():
 		return 0.0
-	var stats: Dictionary = _calculate_player_stats_with_override("weapon", item)
+	return _weapon_sheet_dps_from_stats(_calculate_player_stats_with_override("weapon", item))
+
+func _armor_output_bbcode(item: Dictionary) -> String:
+	var candidate: Dictionary = _calculate_player_stats_with_override("armor", item)
+	var current: Dictionary = _calculate_player_stats()
+
+	var hp: float = float(candidate.get("max_hp", 100.0))
+	var current_hp: float = float(current.get("max_hp", 100.0))
+	var move: float = float(candidate.get("move_speed", 270.0))
+	var current_move: float = float(current.get("move_speed", 270.0))
+	var dash: float = 0.85 * float(candidate.get("dash_cooldown_mult", 1.0))
+	var current_dash: float = 0.85 * float(current.get("dash_cooldown_mult", 1.0))
+	var taken_pct: float = float(candidate.get("damage_taken_mult", 1.0)) * 100.0
+	var current_taken_pct: float = float(current.get("damage_taken_mult", 1.0)) * 100.0
+
+	var text: String = "[color=#777f8d][font_size=11]ARMOR OUTPUT[/font_size][/color]"
+	text += "\n[font_size=20][b]%.0f MAX HP[/b][/font_size]%s" % [hp, _output_delta(hp, current_hp, false, false)]
+	text += "\n[color=#9aa2ae]MOVE[/color] [b]%.0f[/b]%s" % [move, _output_delta(move, current_move, false, false)]
+	text += "\n[color=#9aa2ae]DASH[/color] [b]%.2fs[/b]%s" % [dash, _output_delta(dash, current_dash, true, true)]
+	text += "    [color=#9aa2ae]DMG TAKEN[/color] [b]%.0f%%[/b]%s" % [taken_pct, _output_delta(taken_pct, current_taken_pct, true, false)]
+
+	var currency_find: float = float(candidate.get("currency_find", 0.0))
+	var current_currency_find: float = float(current.get("currency_find", 0.0))
+	var item_find: float = float(candidate.get("item_find", 0.0))
+	var current_item_find: float = float(current.get("item_find", 0.0))
+	if absf(currency_find - current_currency_find) >= 0.05 or absf(item_find - current_item_find) >= 0.05:
+		text += "\n[color=#9aa2ae]FIND[/color] [b]%.1f%% C[/b]%s   [b]%.1f%% I[/b]%s" % [currency_find, _output_delta(currency_find, current_currency_find, false, false), item_find, _output_delta(item_find, current_item_find, false, false)]
+	return text
+
+func _charm_output_bbcode(item: Dictionary) -> String:
+	var candidate: Dictionary = _calculate_player_stats_with_override("charm", item)
+	var current: Dictionary = _calculate_player_stats()
+
+	var candidate_dps: float = _weapon_sheet_dps_from_stats(candidate)
+	var current_dps: float = _weapon_sheet_dps_from_stats(current)
+	var hp: float = float(candidate.get("max_hp", 100.0))
+	var current_hp: float = float(current.get("max_hp", 100.0))
+	var move: float = float(candidate.get("move_speed", 270.0))
+	var current_move: float = float(current.get("move_speed", 270.0))
+	var currency_find: float = float(candidate.get("currency_find", 0.0))
+	var current_currency_find: float = float(current.get("currency_find", 0.0))
+	var item_find: float = float(candidate.get("item_find", 0.0))
+	var current_item_find: float = float(current.get("item_find", 0.0))
+
+	var text: String = "[color=#777f8d][font_size=11]CHARM OUTPUT[/font_size][/color]"
+	text += "\n[font_size=20][b]%.1f DPS[/b][/font_size]%s" % [candidate_dps, _output_delta(candidate_dps, current_dps, false, false)]
+	text += "\n[color=#9aa2ae]MAX HP[/color] [b]%.0f[/b]%s    [color=#9aa2ae]MOVE[/color] [b]%.0f[/b]%s" % [hp, _output_delta(hp, current_hp, false, false), move, _output_delta(move, current_move, false, false)]
+	text += "\n[color=#9aa2ae]CURRENCY FIND[/color] [b]%.1f%%[/b]%s" % [currency_find, _output_delta(currency_find, current_currency_find, false, false)]
+	text += "\n[color=#9aa2ae]ITEM FIND[/color] [b]%.1f%%[/b]%s" % [item_find, _output_delta(item_find, current_item_find, false, false)]
+	return text
+
+func _output_delta(value: float, current_value: float, lower_is_better: bool = false, two_decimals: bool = false) -> String:
+	var delta: float = value - current_value
+	if absf(delta) < 0.005:
+		return ""
+	var beneficial: bool = delta < 0.0 if lower_is_better else delta > 0.0
+	var color_hex: String = "#72df8b" if beneficial else "#ff6d79"
+	var formatted: String = "%+.2f" % delta if two_decimals else "%+.1f" % delta
+	if not two_decimals and absf(delta - round(delta)) < 0.01:
+		formatted = "%+.0f" % delta
+	return " [color=%s](%s)[/color]" % [color_hex, formatted]
+
+func _weapon_sheet_dps_from_stats(stats: Dictionary) -> float:
 	var weapon_type: String = String(stats.get("weapon_type", "repeater"))
 	var base_damage: float = float(stats.get("damage", 18.0))
 	var projectile_mult: float = float(stats.get("projectile_damage_mult", 1.0))
@@ -1244,7 +1306,6 @@ func _weapon_sheet_dps_for_item(item: Dictionary) -> float:
 			attacks_per_second *= 1.80
 		_:
 			pass
-
 	return hit_damage * float(projectile_count) * attacks_per_second
 
 func _apply_item_mechanics_to_stats(stats: Dictionary, item: Dictionary) -> void:
@@ -1708,8 +1769,13 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 	var text: String = "[font_size=18][color=%s][b]%s[/b][/color][/font_size]" % [color_hex, name_value]
 	text += "\n[color=#f6d05f][b]₵%d[/b][/color]   [color=#747b87]%s • %s • ilvl %d[/color]" % [value, rarity, type_text, item_level]
 
-	if slot == "weapon":
-		text += "\n\n" + _weapon_output_bbcode(item)
+	match slot:
+		"weapon":
+			text += "\n\n" + _weapon_output_bbcode(item)
+		"armor":
+			text += "\n\n" + _armor_output_bbcode(item)
+		"charm":
+			text += "\n\n" + _charm_output_bbcode(item)
 
 	var implicit_variant: Variant = item.get("implicit", {})
 	if typeof(implicit_variant) == TYPE_DICTIONARY:
@@ -2088,7 +2154,7 @@ func _select_equipped_slot(slot_name: String) -> void:
 	if item.is_empty():
 		return
 	selected_stash_item_id = -1
-	selected_item_label.text = "[color=#8d96a6]%s[/color]\n%s" % [slot_name.to_upper(), _item_to_bbcode(item)]
+	selected_item_label.text = _item_to_bbcode(item)
 	selected_equip_button.disabled = true
 	selected_sell_button.disabled = true
 
