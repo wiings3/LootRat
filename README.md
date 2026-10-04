@@ -4,6 +4,32 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.54 — Chained Crafting System
+LootRat crafting has been rebuilt around the core Path of Exile idea that **currency performs clear transformations on an item's current state**.
+
+### Item state
+- Common: 0 explicit modifiers.
+- Magic: up to 2 explicit modifiers.
+- Rare: up to 4 explicit modifiers.
+- Gilded: up to 4 explicit modifiers plus its higher Augment ceiling.
+- Item base, implicit, item level, Core, explicit modifiers, and Augments remain separate layers.
+- The item tooltip now shows explicit modifier capacity (for example `MODIFIERS 2/4`).
+
+### Currency verbs
+- **Mutation Shard** — Common → Magic and adds 1 random modifier.
+- **Splice Shard** — adds 1 random modifier to a Magic item with an open slot.
+- **Scrap Orb** — completely reforges a Magic item's explicit modifiers, rolling 1–2 new modifiers.
+- **Crown Token** — Magic → Rare, preserves all current explicit modifiers, then adds 1 random modifier. Requires Claim T2.
+- **Hoarder's Orb** — adds 1 random explicit modifier to a Rare/Gilded item with an open modifier slot. Requires Claim T2.
+- **Chaos Token** — removes 1 random explicit modifier from a Rare/Gilded item and adds 1 random replacement. Requires Claim T2.
+- **Polish Orb** — rerolls the numerical values of existing explicit modifiers while preserving their identities and tiers. Requires Claim T3.
+- **Mechanist's Seal** — operates on Augments rather than numeric modifiers: installs an Augment if the rarity has an open Augment slot, otherwise rerolls one. Requires Claim T3.
+
+### Philosophy
+A strong Magic item is now a legitimate crafting foundation. A normal project can be:
+`Base → Mutation → Scrap/Splice → Crown → Hoarder → Chaos as needed → Polish`.
+Good rolls can survive rarity upgrades, open modifier slots have real value, and high-end items become progressively more expensive to improve. Crafting outcomes remain gated by the current Claim Tier's legal affix and Augment pools.
+
 ## v0.53 — Melee Rebalance & High-Impact Crafting
 - Blade now has an innate close-combat defensive profile:
   - 18% less damage taken while a Blade is equipped.
