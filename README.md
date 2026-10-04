@@ -4,6 +4,31 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.51 — Blade Archetype
+- Added **Blade** as the second full weapon archetype.
+- Blade chassis now drop alongside Gun chassis:
+  - Scrap Blade
+  - Long Blade
+  - Heavy Blade
+  - Quick Blade
+- Blade has four reusable Cores:
+  - **Cleaver Core** — slow, wide, heavy frontal sweep.
+  - **Duelist Core** — fast, narrow, long-reach stab.
+  - **Whirlwind Core** — 360° melee spin that hits everything around the player.
+  - **Throwing Core** — converts the Blade into a ranged piercing blade throw.
+- Blade Cores are part of the same physical Core loot economy: unsecured in Claims, banked on extraction, reusable at the Crafting Bench.
+- The Crafting Bench only shows Cores compatible with the selected weapon archetype.
+- Blade items use Blade-specific Augments instead of rolling Gun projectile Augments:
+  - Keen Edge
+  - Long Reach
+  - Brutal Edge
+  - Kill Frenzy
+- Blade inspection shows actual DPS, hit damage, attack rate, attack pattern, and melee reach.
+- Melee attacks perform real directional range/arc checks against enemies.
+- Cleaver, Duelist, and Whirlwind have distinct attack visuals.
+- One Common Scrap Blade is granted to the stash exactly once so the four Blade Cores can be tested immediately.
+- Existing saves receive one of each Blade Core the first time they migrate into this version.
+
 ## v0.5 — Weapon Archetypes, Cores & Augments
 Loot Rat's weapon model has been rebuilt around **Archetype + Core + Augments**.
 
