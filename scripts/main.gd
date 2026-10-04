@@ -67,7 +67,7 @@ var stash_coins: int = 0
 var stash_seals: int = 5
 var stash_gear: Array[Dictionary] = []
 var stash_crafting: Dictionary = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
-var stash_cores: Dictionary = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0}
+var stash_cores: Dictionary = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1}
 var equipped: Dictionary = {"weapon": {}, "armor": {}, "charm": {}}
 var next_item_id: int = 1
 
@@ -1223,7 +1223,7 @@ func _calculate_player_stats_with_override(override_slot: String, override_item:
 
 func _weapon_output_bbcode(item: Dictionary) -> String:
 	var stats: Dictionary = _calculate_player_stats_with_override("weapon", item)
-	var weapon_type: String = String(stats.get("weapon_core", "repeater"))
+	var core_id: String = String(stats.get("weapon_core", "repeater"))
 	var base_damage: float = float(stats.get("damage", 18.0))
 	var projectile_mult: float = float(stats.get("projectile_damage_mult", 1.0))
 	var bonus_projectiles: int = int(stats.get("bonus_projectiles", 0))
@@ -1234,8 +1234,8 @@ func _weapon_output_bbcode(item: Dictionary) -> String:
 	var hit_label: String = "HIT"
 	var attack_label: String = "VOLLEY"
 
-	match weapon_type:
-		"scattergun":
+	match core_id:
+		"scatter":
 			hit_damage = base_damage * 0.42 * projectile_mult
 			projectiles_per_attack = 5 + bonus_projectiles * 2
 			rate_mult = 0.42
@@ -1339,7 +1339,7 @@ func _output_delta(value: float, current_value: float, lower_is_better: bool = f
 	return " [color=%s](%s)[/color]" % [color_hex, formatted]
 
 func _weapon_sheet_dps_from_stats(stats: Dictionary) -> float:
-	var weapon_type: String = String(stats.get("weapon_core", "repeater"))
+	var core_id: String = String(stats.get("weapon_core", "repeater"))
 	var base_damage: float = float(stats.get("damage", 18.0))
 	var projectile_mult: float = float(stats.get("projectile_damage_mult", 1.0))
 	var bonus_projectiles: int = int(stats.get("bonus_projectiles", 0))
@@ -1347,8 +1347,8 @@ func _weapon_sheet_dps_from_stats(stats: Dictionary) -> float:
 	var hit_damage: float = base_damage * projectile_mult
 	var projectile_count: int = 1 + bonus_projectiles
 
-	match weapon_type:
-		"scattergun":
+	match core_id:
+		"scatter":
 			hit_damage = base_damage * 0.42 * projectile_mult
 			projectile_count = 5 + bonus_projectiles * 2
 			attacks_per_second *= 0.42
@@ -1574,17 +1574,17 @@ func _roll_item_base(slot: String) -> Dictionary:
 			]
 		"armor":
 			bases = [
-				{"name":"Padded Rags", "weapon_type":"", "implicit_stat":"max_hp", "implicit_value":14.0},
-				{"name":"Runner Jacket", "weapon_type":"", "implicit_stat":"move_speed", "implicit_value":12.0},
-				{"name":"Reinforced Vest", "weapon_type":"", "implicit_stat":"max_hp", "implicit_value":24.0},
-				{"name":"Scavenger Coat", "weapon_type":"", "implicit_stat":"item_find", "implicit_value":5.0}
+				{"name":"Padded Rags", "implicit_stat":"max_hp", "implicit_value":14.0},
+				{"name":"Runner Jacket", "implicit_stat":"move_speed", "implicit_value":12.0},
+				{"name":"Reinforced Vest", "implicit_stat":"max_hp", "implicit_value":24.0},
+				{"name":"Scavenger Coat", "implicit_stat":"item_find", "implicit_value":5.0}
 			]
 		_:
 			bases = [
-				{"name":"Bent Lucky Coin", "weapon_type":"", "implicit_stat":"currency_find", "implicit_value":4.0},
-				{"name":"Finder's Eye", "weapon_type":"", "implicit_stat":"item_find", "implicit_value":4.0},
-				{"name":"Rat Fang", "weapon_type":"", "implicit_stat":"damage", "implicit_value":2.5},
-				{"name":"Runner Token", "weapon_type":"", "implicit_stat":"move_speed", "implicit_value":8.0}
+				{"name":"Bent Lucky Coin", "implicit_stat":"currency_find", "implicit_value":4.0},
+				{"name":"Finder's Eye", "implicit_stat":"item_find", "implicit_value":4.0},
+				{"name":"Rat Fang", "implicit_stat":"damage", "implicit_value":2.5},
+				{"name":"Runner Token", "implicit_stat":"move_speed", "implicit_value":8.0}
 			]
 	return bases[rng.randi_range(0, bases.size() - 1)].duplicate(true)
 
@@ -2799,7 +2799,7 @@ func _wipe_save() -> void:
 	stash_seals = 5
 	stash_gear.clear()
 	stash_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
-	stash_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0}
+	stash_cores = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1}
 	equipped = {"weapon": {}, "armor": {}, "charm": {}}
 	next_item_id = 1
 	selected_stash_item_id = -1
