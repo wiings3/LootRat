@@ -4,6 +4,31 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.5 — Weapon Archetypes, Cores & Augments
+Loot Rat's weapon model has been rebuilt around **Archetype + Core + Augments**.
+
+- The first implemented weapon archetype is **Gun**.
+- Gun chassis no longer define firing behavior. Current chassis are:
+  - Scrap Gun
+  - Cutdown Gun
+  - Heavy-Frame Gun
+  - Rapid-Frame Gun
+- Every Gun has exactly one **Core socket**. The Core fundamentally changes the attack:
+  - **Repeater Core** — reliable automatic single-projectile fire.
+  - **Scatter Core** — five-pellet close-range blast.
+  - **Piercer Core** — slow, heavy, innately piercing shot.
+  - **Sprayer Core** — extremely fast, lower-damage bullet hose.
+- Cores are physical unsecured Claim drops. Death loses unextracted Cores; extraction banks them.
+- Cores are reusable. Slotting a new Core at the Crafting Bench returns the old Core to Core storage.
+- New and migrated prototype saves receive one Scatter, Piercer, and Sprayer Core so all current firing styles can be tested immediately.
+- Existing Repeater / Scattergun / Piercer / Sprayer weapon saves migrate automatically into **Gun + matching Core**.
+- Existing weapon mechanical affixes are now presented as **Augments**. Cores define the attack; Augments mutate it.
+- The Crafting Bench now has a dedicated **Core Socket** section showing stored Core counts and the currently slotted Core.
+- Weapon inspection now shows the Gun archetype and Core separately before its actual combat output.
+- This architecture is intentionally ready for future archetypes such as Blade, Heavy, Focus, and Launcher without duplicating the entire item system.
+
+Design rule: **if changing a Core does not substantially change how the archetype is played, it is not a Core.**
+
 ## v0.42 — ARPG Inventory UI
 - Reworked the Hideout station menus to be cleaner and more ARPG-like.
 - The **Stash is now a real visual grid** instead of a scrolling text list.
