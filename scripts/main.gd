@@ -44,6 +44,10 @@ var crafting_currency_label: RichTextLabel = null
 var crafting_feedback_label: Label = null
 var crafting_buttons: Dictionary = {}
 var core_buttons: Dictionary = {}
+var crafting_stash_grid: GridContainer = null
+var crafting_equipped_buttons: Dictionary = {}
+var crafting_target_source: String = "none"
+var crafting_target_slot: String = ""
 var sort_button: Button = null
 var claim_unlock_button: Button = null
 var interaction_prompt: Label = null
@@ -539,8 +543,8 @@ func _build_gear_panel() -> void:
 
 func _build_crafting_panel() -> void:
 	crafting_panel = PanelContainer.new()
-	crafting_panel.position = Vector2(190.0, 88.0)
-	crafting_panel.size = Vector2(900.0, 570.0)
+	crafting_panel.position = Vector2(50.0, 88.0)
+	crafting_panel.size = Vector2(1180.0, 570.0)
 	crafting_panel.visible = false
 	crafting_panel.add_theme_stylebox_override("panel", _arpg_frame_style(true))
 	hud.add_child(crafting_panel)
@@ -564,44 +568,92 @@ func _build_crafting_panel() -> void:
 	crafting_currency_label = RichTextLabel.new()
 	crafting_currency_label.bbcode_enabled = true
 	crafting_currency_label.fit_content = false
-	crafting_currency_label.custom_minimum_size = Vector2(870.0, 39.0)
+	crafting_currency_label.custom_minimum_size = Vector2(1150.0, 30.0)
 	crafting_currency_label.add_theme_font_size_override("normal_font_size", 11)
-	crafting_currency_label.add_theme_constant_override("line_separation", 2)
 	root.add_child(crafting_currency_label)
 
 	var body := HBoxContainer.new()
-	body.add_theme_constant_override("separation", 9)
+	body.add_theme_constant_override("separation", 8)
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root.add_child(body)
 
+	var source_panel := PanelContainer.new()
+	source_panel.custom_minimum_size = Vector2(390.0, 472.0)
+	source_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.010, 0.010, 0.009), Color(0.21, 0.17, 0.11), 1))
+	body.add_child(source_panel)
+
+	var source_root := VBoxContainer.new()
+	source_root.add_theme_constant_override("separation", 5)
+	source_panel.add_child(source_root)
+
+	var equipped_title := Label.new()
+	equipped_title.text = "EQUIPPED"
+	equipped_title.add_theme_font_size_override("font_size", 10)
+	equipped_title.add_theme_color_override("font_color", Color(0.76, 0.63, 0.37))
+	source_root.add_child(equipped_title)
+
+	var equipped_row := HBoxContainer.new()
+	equipped_row.add_theme_constant_override("separation", 4)
+	source_root.add_child(equipped_row)
+	var craft_slot_specs: Array[Dictionary] = [
+		{"key":"weapon", "label":"WEAPON"},
+		{"key":"armor", "label":"ARMOR"},
+		{"key":"charm", "label":"CHARM"}
+	]
+	for spec: Dictionary in craft_slot_specs:
+		var slot_key: String = String(spec["key"])
+		var button := _make_button(String(spec["label"]), _select_crafting_equipped.bind(slot_key), Vector2(120.0, 54.0))
+		button.add_theme_font_size_override("font_size", 9)
+		crafting_equipped_buttons[slot_key] = button
+		equipped_row.add_child(button)
+
+	var stash_divider := HSeparator.new()
+	source_root.add_child(stash_divider)
+	var stash_title := Label.new()
+	stash_title.text = "STASH"
+	stash_title.add_theme_font_size_override("font_size", 10)
+	stash_title.add_theme_color_override("font_color", Color(0.76, 0.63, 0.37))
+	source_root.add_child(stash_title)
+
+	var stash_scroll := ScrollContainer.new()
+	stash_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	stash_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	stash_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	source_root.add_child(stash_scroll)
+
+	crafting_stash_grid = GridContainer.new()
+	crafting_stash_grid.columns = 5
+	crafting_stash_grid.add_theme_constant_override("h_separation", 2)
+	crafting_stash_grid.add_theme_constant_override("v_separation", 2)
+	stash_scroll.add_child(crafting_stash_grid)
+
 	var item_panel := PanelContainer.new()
-	item_panel.custom_minimum_size = Vector2(426.0, 458.0)
-	item_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.010, 0.010, 0.009), Color(0.21, 0.17, 0.11), 1))
+	item_panel.custom_minimum_size = Vector2(360.0, 472.0)
+	item_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.014, 0.013, 0.011), Color(0.24, 0.19, 0.12), 1))
 	body.add_child(item_panel)
 
 	var item_root := VBoxContainer.new()
 	item_root.add_theme_constant_override("separation", 5)
 	item_panel.add_child(item_root)
 	var target_title := Label.new()
-	target_title.text = "TARGET ITEM"
+	target_title.text = "CRAFTING TARGET"
 	target_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	target_title.add_theme_font_size_override("font_size", 10)
-	target_title.add_theme_color_override("font_color", Color(0.51, 0.45, 0.34))
+	target_title.add_theme_color_override("font_color", Color(0.76, 0.63, 0.37))
 	item_root.add_child(target_title)
-	var target_divider := HSeparator.new()
-	item_root.add_child(target_divider)
+	item_root.add_child(HSeparator.new())
 
 	crafting_item_label = RichTextLabel.new()
 	crafting_item_label.bbcode_enabled = true
 	crafting_item_label.fit_content = false
 	crafting_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	crafting_item_label.custom_minimum_size = Vector2(398.0, 400.0)
+	crafting_item_label.custom_minimum_size = Vector2(336.0, 420.0)
 	crafting_item_label.add_theme_font_size_override("normal_font_size", 12)
 	crafting_item_label.add_theme_constant_override("line_separation", 2)
 	item_root.add_child(crafting_item_label)
 
 	var actions_panel := PanelContainer.new()
-	actions_panel.custom_minimum_size = Vector2(435.0, 458.0)
+	actions_panel.custom_minimum_size = Vector2(375.0, 472.0)
 	actions_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.016, 0.015, 0.013), Color(0.21, 0.17, 0.11), 1))
 	body.add_child(actions_panel)
 	var actions := VBoxContainer.new()
@@ -621,24 +673,23 @@ func _build_crafting_panel() -> void:
 	actions.add_child(core_grid)
 
 	var core_specs: Array[Dictionary] = [
-		{"id":"repeater", "label":"GUN • REPEATER"},
-		{"id":"scatter", "label":"GUN • SCATTER"},
-		{"id":"piercer", "label":"GUN • PIERCER"},
-		{"id":"sprayer", "label":"GUN • SPRAYER"},
-		{"id":"cleaver", "label":"BLADE • CLEAVER"},
-		{"id":"duelist", "label":"BLADE • DUELIST"},
-		{"id":"whirlwind", "label":"BLADE • WHIRL"},
-		{"id":"throwing", "label":"BLADE • RECALL"}
+		{"id":"repeater", "label":"REPEATER"},
+		{"id":"scatter", "label":"SCATTER"},
+		{"id":"piercer", "label":"PIERCER"},
+		{"id":"sprayer", "label":"SPRAYER"},
+		{"id":"cleaver", "label":"CLEAVER"},
+		{"id":"duelist", "label":"DUELIST"},
+		{"id":"whirlwind", "label":"WHIRL"},
+		{"id":"throwing", "label":"RECALL"}
 	]
 	for spec: Dictionary in core_specs:
 		var core_id: String = String(spec["id"])
-		var button := _make_button(String(spec["label"]), _slot_core.bind(core_id), Vector2(198.0, 32.0))
+		var button := _make_button(String(spec["label"]), _slot_core.bind(core_id), Vector2(172.0, 31.0))
 		button.add_theme_font_size_override("font_size", 9)
 		core_buttons[core_id] = button
 		core_grid.add_child(button)
 
-	var divider := HSeparator.new()
-	actions.add_child(divider)
+	actions.add_child(HSeparator.new())
 
 	var craft_title := Label.new()
 	craft_title.text = "APPLY CURRENCY"
@@ -646,24 +697,24 @@ func _build_crafting_panel() -> void:
 	craft_title.add_theme_color_override("font_color", Color(0.76, 0.63, 0.37))
 	actions.add_child(craft_title)
 
-	var scrap_button := _make_button("SCRAP ORB", _craft_scrap, Vector2(410.0, 45.0))
+	var scrap_button := _make_button("SCRAP ORB", _craft_scrap, Vector2(352.0, 44.0))
 	crafting_buttons["scrap"] = scrap_button
 	actions.add_child(scrap_button)
 
-	var mutation_button := _make_button("MUTATION SHARD", _craft_mutation, Vector2(410.0, 45.0))
+	var mutation_button := _make_button("MUTATION SHARD", _craft_mutation, Vector2(352.0, 44.0))
 	crafting_buttons["mutation"] = mutation_button
 	actions.add_child(mutation_button)
 
-	var chaos_button := _make_button("CHAOS TOKEN", _craft_chaos, Vector2(410.0, 45.0))
+	var chaos_button := _make_button("CHAOS TOKEN", _craft_chaos, Vector2(352.0, 44.0))
 	crafting_buttons["chaos"] = chaos_button
 	actions.add_child(chaos_button)
 
-	var mechanist_button := _make_button("MECHANIST'S SEAL", _craft_mechanist, Vector2(410.0, 45.0))
+	var mechanist_button := _make_button("MECHANIST'S SEAL", _craft_mechanist, Vector2(352.0, 44.0))
 	crafting_buttons["mechanist"] = mechanist_button
 	actions.add_child(mechanist_button)
 
-	crafting_feedback_label = _muted_label("Select an item at the Stash, then work on it here.")
-	crafting_feedback_label.custom_minimum_size = Vector2(410.0, 36.0)
+	crafting_feedback_label = _muted_label("Choose equipped gear or an item from the stash.")
+	crafting_feedback_label.custom_minimum_size = Vector2(352.0, 38.0)
 	crafting_feedback_label.add_theme_font_size_override("font_size", 10)
 	crafting_feedback_label.add_theme_color_override("font_color", Color(0.64, 0.55, 0.39))
 	actions.add_child(crafting_feedback_label)
@@ -785,6 +836,12 @@ func _open_hub_station(station_name: String) -> void:
 	gear_panel.visible = station_name == "stash"
 	crafting_panel.visible = station_name == "craft"
 	if station_name == "craft":
+		if crafting_target_source == "none":
+			if selected_stash_item_id >= 0 and _find_stash_item_index(selected_stash_item_id) >= 0:
+				crafting_target_source = "stash"
+			else:
+				crafting_target_source = "equipped"
+				crafting_target_slot = "weapon"
 		_refresh_crafting_panel()
 	else:
 		_update_hub_ui()
@@ -2606,10 +2663,11 @@ func _refresh_crafting_panel() -> void:
 	if crafting_panel == null:
 		return
 	crafting_currency_label.text = "[color=#82745a][font_size=10]MATERIALS[/font_size][/color]   [color=#d5d0c6]Scrap[/color] %d    [color=#d5d0c6]Mutation[/color] %d    [color=#d5d0c6]Chaos[/color] %d    [color=#d5d0c6]Mechanist[/color] %d" % [int(stash_crafting.get("scrap", 0)), int(stash_crafting.get("mutation", 0)), int(stash_crafting.get("chaos", 0)), int(stash_crafting.get("mechanist", 0))]
+	_refresh_crafting_sources()
 
-	var index: int = _find_stash_item_index(selected_stash_item_id)
-	if index < 0:
-		crafting_item_label.text = "[color=#737c8d]No stash item selected.[/color]"
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty():
+		crafting_item_label.text = "[color=#686157]Choose an equipped item or a stash item.[/color]"
 		for button_variant: Variant in crafting_buttons.values():
 			if button_variant is Button:
 				(button_variant as Button).disabled = true
@@ -2619,7 +2677,6 @@ func _refresh_crafting_panel() -> void:
 				(button_variant as Button).visible = false
 		return
 
-	var item: Dictionary = stash_gear[index]
 	crafting_item_label.text = _item_to_bbcode(item)
 	var rarity: String = String(item.get("rarity", "Common"))
 	var is_weapon: bool = String(item.get("slot", "")) == "weapon"
@@ -2637,6 +2694,7 @@ func _refresh_crafting_panel() -> void:
 			core_button.disabled = not compatible or slotted or int(stash_cores.get(core_id, 0)) <= 0
 			core_button.add_theme_stylebox_override("normal", _arpg_button_style(slotted, false))
 			core_button.add_theme_color_override("font_color", Color(0.92, 0.78, 0.50) if slotted else Color(0.72, 0.69, 0.62))
+
 	var affix_count: int = _item_affix_count(item)
 	var mechanic_count: int = _item_mechanic_count(item)
 
@@ -2667,17 +2725,91 @@ func _refresh_crafting_panel() -> void:
 		else:
 			mechanic_button.text = "MECHANIST'S SEAL\nLocked until Claim T3"
 
+func _refresh_crafting_sources() -> void:
+	for slot_name: String in ["weapon", "armor", "charm"]:
+		var button_variant: Variant = crafting_equipped_buttons.get(slot_name)
+		if not button_variant is Button:
+			continue
+		var button := button_variant as Button
+		var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
+		var selected: bool = crafting_target_source == "equipped" and crafting_target_slot == slot_name
+		if item.is_empty():
+			button.text = "%s\nEMPTY" % slot_name.to_upper()
+			button.disabled = true
+			button.add_theme_color_override("font_color", Color(0.42, 0.40, 0.36))
+		else:
+			button.text = "%s\n%s" % [slot_name.to_upper(), _grid_item_short_name(item)]
+			button.disabled = false
+			button.add_theme_color_override("font_color", _rarity_color(String(item.get("rarity", "Common"))))
+		button.add_theme_stylebox_override("normal", _arpg_button_style(selected, false))
+
+	if crafting_stash_grid == null:
+		return
+	for child: Node in crafting_stash_grid.get_children():
+		child.queue_free()
+
+	for item: Dictionary in stash_gear:
+		var item_id: int = int(item.get("id", -1))
+		var rarity: String = String(item.get("rarity", "Common"))
+		var selected: bool = crafting_target_source == "stash" and selected_stash_item_id == item_id
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(70.0, 58.0)
+		button.text = "%s\n%s" % [_grid_item_glyph(String(item.get("slot", "gear"))), _grid_item_short_name(item)]
+		button.add_theme_font_size_override("font_size", 9)
+		button.tooltip_text = "%s\n%s • ilvl %d" % [String(item.get("name", "Item")), rarity, int(item.get("item_level", 1))]
+		button.add_theme_color_override("font_color", _rarity_color(rarity))
+		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity), selected))
+		button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.74, 0.57, 0.29), true))
+		button.pressed.connect(_select_crafting_stash_item.bind(item_id))
+		crafting_stash_grid.add_child(button)
+
+func _select_crafting_stash_item(item_id: int) -> void:
+	if _find_stash_item_index(item_id) < 0:
+		return
+	selected_stash_item_id = item_id
+	crafting_target_source = "stash"
+	crafting_target_slot = ""
+	crafting_feedback_label.text = "Stash item selected."
+	_refresh_crafting_panel()
+
+func _select_crafting_equipped(slot_name: String) -> void:
+	var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
+	if item.is_empty():
+		return
+	crafting_target_source = "equipped"
+	crafting_target_slot = slot_name
+	selected_stash_item_id = -1
+	crafting_feedback_label.text = "%s selected from equipped gear." % slot_name.capitalize()
+	_refresh_crafting_panel()
+
+func _get_crafting_target_item() -> Dictionary:
+	if crafting_target_source == "equipped":
+		return (equipped.get(crafting_target_slot, {}) as Dictionary).duplicate(true)
+	if crafting_target_source == "stash":
+		var index: int = _find_stash_item_index(selected_stash_item_id)
+		if index >= 0:
+			return stash_gear[index].duplicate(true)
+	return {}
+
+func _store_crafting_target_item(item: Dictionary) -> void:
+	if crafting_target_source == "equipped":
+		if not crafting_target_slot.is_empty():
+			equipped[crafting_target_slot] = item.duplicate(true)
+	elif crafting_target_source == "stash":
+		var index: int = _find_stash_item_index(selected_stash_item_id)
+		if index >= 0:
+			stash_gear[index] = item.duplicate(true)
+
 func _set_craft_button_state(key: String, enabled: bool) -> void:
 	var button_variant: Variant = crafting_buttons.get(key)
 	if button_variant is Button:
 		(button_variant as Button).disabled = not enabled
 
 func _slot_core(core_id: String) -> void:
-	var index: int = _find_stash_item_index(selected_stash_item_id)
-	if index < 0 or int(stash_cores.get(core_id, 0)) <= 0:
+	if int(stash_cores.get(core_id, 0)) <= 0:
 		return
-	var item: Dictionary = stash_gear[index]
-	if String(item.get("slot", "")) != "weapon":
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty() or String(item.get("slot", "")) != "weapon":
 		return
 	var weapon_archetype: String = String(item.get("weapon_archetype", "gun"))
 	if _core_archetype(core_id) != weapon_archetype:
@@ -2689,21 +2821,23 @@ func _slot_core(core_id: String) -> void:
 	stash_cores[old_core] = int(stash_cores.get(old_core, 0)) + 1
 	item["core_id"] = core_id
 	item["name"] = _make_generated_item_name(item)
-	stash_gear[index] = item
+	_store_crafting_target_item(item)
 	crafting_feedback_label.text = "%s CORE SLOTTED — %s returned to storage." % [_core_name(core_id).to_upper(), _core_name(old_core)]
 	_after_craft()
 
 func _craft_scrap() -> void:
-	var index: int = _find_stash_item_index(selected_stash_item_id)
-	if index < 0 or int(stash_crafting.get("scrap", 0)) <= 0:
+	if int(stash_crafting.get("scrap", 0)) <= 0:
 		return
-	var item: Dictionary = stash_gear[index]
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty():
+		return
 	var affixes_variant: Variant = item.get("affixes", [])
 	if typeof(affixes_variant) != TYPE_ARRAY or (affixes_variant as Array).is_empty():
 		return
 
 	var rerolled: Array[Dictionary] = []
-	for affix_variant: Variant in affixes_variant as Array:
+	var affixes: Array = affixes_variant as Array
+	for affix_variant: Variant in affixes:
 		if typeof(affix_variant) != TYPE_DICTIONARY:
 			continue
 		var affix: Dictionary = affix_variant as Dictionary
@@ -2714,17 +2848,16 @@ func _craft_scrap() -> void:
 	item["affixes"] = rerolled
 	_rebuild_item_stats(item)
 	_finalize_crafted_item(item)
-	stash_gear[index] = item
+	_store_crafting_target_item(item)
 	_spend_crafting_currency("scrap")
-	crafting_feedback_label.text = "SCRAP SLAMMED — values rerolled. Better? Worse? That's the game."
+	crafting_feedback_label.text = "SCRAP SLAMMED — values rerolled."
 	_after_craft()
 
 func _craft_mutation() -> void:
-	var index: int = _find_stash_item_index(selected_stash_item_id)
-	if index < 0 or int(stash_crafting.get("mutation", 0)) <= 0:
+	if int(stash_crafting.get("mutation", 0)) <= 0:
 		return
-	var item: Dictionary = stash_gear[index]
-	if String(item.get("rarity", "Common")) != "Common":
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty() or String(item.get("rarity", "Common")) != "Common":
 		return
 
 	item["rarity"] = "Magic"
@@ -2741,16 +2874,17 @@ func _craft_mutation() -> void:
 	item["affixes"] = [_make_affix_record(stat, tier, value)]
 	_rebuild_item_stats(item)
 	_finalize_crafted_item(item)
-	stash_gear[index] = item
+	_store_crafting_target_item(item)
 	_spend_crafting_currency("mutation")
-	crafting_feedback_label.text = "MUTATED — the clean base is now Magic. This is where projects begin."
+	crafting_feedback_label.text = "MUTATED — the item is now Magic."
 	_after_craft()
 
 func _craft_chaos() -> void:
-	var index: int = _find_stash_item_index(selected_stash_item_id)
-	if index < 0 or claim_tier < 2 or int(stash_crafting.get("chaos", 0)) <= 0:
+	if claim_tier < 2 or int(stash_crafting.get("chaos", 0)) <= 0:
 		return
-	var item: Dictionary = stash_gear[index]
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty():
+		return
 	var affix_count: int = _item_affix_count(item)
 	if affix_count <= 0 or String(item.get("rarity", "Common")) == "Common":
 		return
@@ -2773,16 +2907,17 @@ func _craft_chaos() -> void:
 	item["affixes"] = new_affixes
 	_rebuild_item_stats(item)
 	_finalize_crafted_item(item)
-	stash_gear[index] = item
+	_store_crafting_target_item(item)
 	_spend_crafting_currency("chaos")
-	crafting_feedback_label.text = "CHAOS SLAMMED — base and mechanic survived. The normal affixes did not."
+	crafting_feedback_label.text = "CHAOS SLAMMED — normal modifiers rerolled."
 	_after_craft()
 
 func _craft_mechanist() -> void:
-	var index: int = _find_stash_item_index(selected_stash_item_id)
-	if index < 0 or claim_tier < 3 or int(stash_crafting.get("mechanist", 0)) <= 0:
+	if claim_tier < 3 or int(stash_crafting.get("mechanist", 0)) <= 0:
 		return
-	var item: Dictionary = stash_gear[index]
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty():
+		return
 	var mechanics_variant: Variant = item.get("mechanics", [])
 	if typeof(mechanics_variant) != TYPE_ARRAY:
 		return
@@ -2802,13 +2937,15 @@ func _craft_mechanist() -> void:
 	mechanics[target_index] = replacement
 	item["mechanics"] = mechanics
 	_finalize_crafted_item(item)
-	stash_gear[index] = item
+	_store_crafting_target_item(item)
 	_spend_crafting_currency("mechanist")
-	crafting_feedback_label.text = "MECHANIST SLAMMED — the item's identity changed. Pray it changed for the better."
+	crafting_feedback_label.text = "MECHANIST SLAMMED — one Augment rerolled."
 	_after_craft()
 
 func _after_craft() -> void:
 	_update_hub_ui()
+	if is_instance_valid(player) and state == "hub":
+		player.configure(_calculate_player_stats())
 	_refresh_crafting_panel()
 	_save_game()
 
@@ -3062,6 +3199,8 @@ func _wipe_save() -> void:
 	next_item_id = 1
 	blade_intro_granted = false
 	selected_stash_item_id = -1
+	crafting_target_source = "none"
+	crafting_target_slot = ""
 	stash_filter = "all"
 	stash_sort_mode = "value"
 	claim_tier = 1
