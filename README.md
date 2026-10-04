@@ -4,6 +4,18 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.521 — Workbench Item Access
+- The Workbench is now self-contained: it can browse both **equipped gear** and the **stash** without returning to the Stash station first.
+- Equipped Weapon / Armor / Charm appear as selectable crafting sources.
+- The stash is available inside the Workbench as its own compact item grid.
+- Crafting now uses an explicit target source:
+  - stash item by item ID, or
+  - equipped item by equipment slot.
+- Applying currency or swapping a Core to equipped gear edits that equipped item directly.
+- Applying currency or swapping a Core to stash gear edits the stash item directly.
+- The selected source is visually highlighted and the center panel always shows the active crafting target.
+- The hideout player is reconfigured after crafting equipped gear so stat changes take effect immediately.
+
 ## v0.52 — ARPG Interface Overhaul
 - Rebuilt the Stash and Workbench layout using Path of Exile 1/2 as heavy structural inspiration without directly copying their art.
 - Replaced rounded app-like cards with square dark frames, restrained aged-brass borders, compact tabs, and ARPG-style item sockets.
