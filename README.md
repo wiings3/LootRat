@@ -40,12 +40,7 @@ Good rolls can survive rarity upgrades, open modifier slots have real value, and
   - Whirlwind: higher damage, faster cadence, larger radius, more knockback.
   - Recall remains the safer ranged Blade option and was not given the same melee damage spike.
 - Blade inspector DPS/reach math and attack visuals were updated to match runtime behavior.
-- Crafting currencies now have memorable high-roll / low-roll outcomes while respecting Claim Tier progression:
-  - **Scrap Orb:** rerolls values, with a 20% chance to improve one affix by a tier when allowed.
-  - **Mutation Shard:** Common → Magic normally; at Claim T2+ it has a 16% chance to jump straight to Rare. It can also high-roll a stronger affix tier.
-  - **Chaos Token:** full normal-affix reroll, with an 18% chance to improve one affix tier and a 10% brick chance to worsen one.
-  - **Mechanist's Seal:** rerolls one Augment; at Claim T3+ a Rare item with one Augment has an 18% chance to gain a second compatible Augment.
-- Crafting jackpot outcomes never unlock affix/mechanic tiers that the current Claim Tier cannot legally produce.
+- The experimental jackpot/brick crafting rules from this version were superseded by **v0.54's chained currency system**, which makes risk come from item-state decisions rather than arbitrary bonus percentages.
 
 ## v0.521 — Workbench Item Access
 - The Workbench is now self-contained: it can browse both **equipped gear** and the **stash** without returning to the Stash station first.
