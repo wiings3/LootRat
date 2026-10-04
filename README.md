@@ -15,7 +15,7 @@ A deliberately focused loot-game prototype:
   - **Cleaver Core** — slow, wide, heavy frontal sweep.
   - **Duelist Core** — fast, narrow, long-reach stab.
   - **Whirlwind Core** — 360° melee spin that hits everything around the player.
-  - **Throwing Core** — converts the Blade into a ranged piercing blade throw.
+  - **Recall Core** — throw a blade outward, then recall it through enemies for a second hit.
 - Blade Cores are part of the same physical Core loot economy: unsecured in Claims, banked on extraction, reusable at the Crafting Bench.
 - The Crafting Bench only shows Cores compatible with the selected weapon archetype.
 - Blade items use Blade-specific Augments instead of rolling Gun projectile Augments:
@@ -25,7 +25,7 @@ A deliberately focused loot-game prototype:
   - Kill Frenzy
 - Blade inspection shows actual DPS, hit damage, attack rate, attack pattern, and melee reach.
 - Melee attacks perform real directional range/arc checks against enemies.
-- Cleaver, Duelist, and Whirlwind have distinct attack visuals.
+- Cleaver, Duelist, Whirlwind, and Recall have distinct attack behavior and visuals.
 - One Common Scrap Blade is granted to the stash exactly once so the four Blade Cores can be tested immediately.
 - Existing saves receive one of each Blade Core the first time they migrate into this version.
 
