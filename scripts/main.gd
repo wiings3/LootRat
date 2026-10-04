@@ -70,7 +70,7 @@ var room_clear_delay: float = 0.0
 var stash_coins: int = 0
 var stash_seals: int = 5
 var stash_gear: Array[Dictionary] = []
-var stash_crafting: Dictionary = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
+var stash_crafting: Dictionary = {"scrap": 0, "mutation": 0, "splice": 0, "crown": 0, "hoarder": 0, "chaos": 0, "polish": 0, "mechanist": 0}
 var stash_cores: Dictionary = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1, "cleaver": 1, "duelist": 1, "whirlwind": 1, "throwing": 1}
 var equipped: Dictionary = {"weapon": {}, "armor": {}, "charm": {}}
 var next_item_id: int = 1
@@ -79,7 +79,7 @@ var blade_intro_granted: bool = false
 var run_coins: int = 0
 var run_seals: int = 0
 var run_gear: Array[Dictionary] = []
-var run_crafting: Dictionary = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
+var run_crafting: Dictionary = {"scrap": 0, "mutation": 0, "splice": 0, "crown": 0, "hoarder": 0, "chaos": 0, "polish": 0, "mechanist": 0}
 var run_cores: Dictionary = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0, "cleaver": 0, "duelist": 0, "whirlwind": 0, "throwing": 0}
 
 var juice_density: int = 0
@@ -697,19 +697,35 @@ func _build_crafting_panel() -> void:
 	craft_title.add_theme_color_override("font_color", Color(0.76, 0.63, 0.37))
 	actions.add_child(craft_title)
 
-	var scrap_button := _make_button("SCRAP ORB", _craft_scrap, Vector2(352.0, 44.0))
-	crafting_buttons["scrap"] = scrap_button
-	actions.add_child(scrap_button)
-
-	var mutation_button := _make_button("MUTATION SHARD", _craft_mutation, Vector2(352.0, 44.0))
+	var mutation_button := _make_button("MUTATION SHARD", _craft_mutation, Vector2(352.0, 32.0))
 	crafting_buttons["mutation"] = mutation_button
 	actions.add_child(mutation_button)
 
-	var chaos_button := _make_button("CHAOS TOKEN", _craft_chaos, Vector2(352.0, 44.0))
+	var splice_button := _make_button("SPLICE SHARD", _craft_splice, Vector2(352.0, 32.0))
+	crafting_buttons["splice"] = splice_button
+	actions.add_child(splice_button)
+
+	var scrap_button := _make_button("SCRAP ORB", _craft_scrap, Vector2(352.0, 32.0))
+	crafting_buttons["scrap"] = scrap_button
+	actions.add_child(scrap_button)
+
+	var crown_button := _make_button("CROWN TOKEN", _craft_crown, Vector2(352.0, 32.0))
+	crafting_buttons["crown"] = crown_button
+	actions.add_child(crown_button)
+
+	var hoarder_button := _make_button("HOARDER'S ORB", _craft_hoarder, Vector2(352.0, 32.0))
+	crafting_buttons["hoarder"] = hoarder_button
+	actions.add_child(hoarder_button)
+
+	var chaos_button := _make_button("CHAOS TOKEN", _craft_chaos, Vector2(352.0, 32.0))
 	crafting_buttons["chaos"] = chaos_button
 	actions.add_child(chaos_button)
 
-	var mechanist_button := _make_button("MECHANIST'S SEAL", _craft_mechanist, Vector2(352.0, 44.0))
+	var polish_button := _make_button("POLISH ORB", _craft_polish, Vector2(352.0, 32.0))
+	crafting_buttons["polish"] = polish_button
+	actions.add_child(polish_button)
+
+	var mechanist_button := _make_button("MECHANIST'S SEAL", _craft_mechanist, Vector2(352.0, 32.0))
 	crafting_buttons["mechanist"] = mechanist_button
 	actions.add_child(mechanist_button)
 
@@ -893,7 +909,7 @@ func _start_claim() -> void:
 	run_coins = 0
 	run_seals = 0
 	run_gear.clear()
-	run_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
+	run_crafting = {"scrap": 0, "mutation": 0, "splice": 0, "crown": 0, "hoarder": 0, "chaos": 0, "polish": 0, "mechanist": 0}
 	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0, "cleaver": 0, "duelist": 0, "whirlwind": 0, "throwing": 0}
 	total_run_kills = 0
 	feed_lines.clear()
@@ -1078,12 +1094,20 @@ func _spawn_loot_burst(position_value: Vector2, reward_scale: float, elite: bool
 
 func _spawn_crafting_currency_rolls(position_value: Vector2, quantity_mult: float, elite: bool) -> void:
 	var elite_mult: float = 2.5 if elite else 1.0
-	if rng.randf() < 0.030 * quantity_mult * elite_mult:
+	if rng.randf() < 0.028 * quantity_mult * elite_mult:
 		_spawn_pickup("craft", 1, {"currency":"scrap"}, position_value)
-	if rng.randf() < 0.008 * quantity_mult * (3.0 if elite else 1.0):
+	if rng.randf() < 0.012 * quantity_mult * (2.7 if elite else 1.0):
 		_spawn_pickup("craft", 1, {"currency":"mutation"}, position_value)
+	if rng.randf() < 0.010 * quantity_mult * (2.8 if elite else 1.0):
+		_spawn_pickup("craft", 1, {"currency":"splice"}, position_value)
+	if claim_tier >= 2 and rng.randf() < 0.0040 * quantity_mult * (3.2 if elite else 1.0):
+		_spawn_pickup("craft", 1, {"currency":"crown"}, position_value)
+	if claim_tier >= 2 and rng.randf() < 0.0022 * quantity_mult * (3.8 if elite else 1.0):
+		_spawn_pickup("craft", 1, {"currency":"hoarder"}, position_value)
 	if claim_tier >= 2 and rng.randf() < 0.0025 * quantity_mult * (4.0 if elite else 1.0):
 		_spawn_pickup("craft", 1, {"currency":"chaos"}, position_value)
+	if claim_tier >= 3 and rng.randf() < 0.0010 * quantity_mult * (4.5 if elite else 1.0):
+		_spawn_pickup("craft", 1, {"currency":"polish"}, position_value)
 	if claim_tier >= 3 and rng.randf() < 0.0008 * quantity_mult * (5.0 if elite else 1.0):
 		_spawn_pickup("craft", 1, {"currency":"mechanist"}, position_value)
 
@@ -1177,7 +1201,7 @@ func _extract_run() -> void:
 	run_coins = 0
 	run_seals = 0
 	run_gear.clear()
-	run_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
+	run_crafting = {"scrap": 0, "mutation": 0, "splice": 0, "crown": 0, "hoarder": 0, "chaos": 0, "polish": 0, "mechanist": 0}
 	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0, "cleaver": 0, "duelist": 0, "whirlwind": 0, "throwing": 0}
 	_clear_juice()
 	_enter_hub()
@@ -1199,7 +1223,7 @@ func _on_player_died() -> void:
 	run_coins = 0
 	run_seals = 0
 	run_gear.clear()
-	run_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
+	run_crafting = {"scrap": 0, "mutation": 0, "splice": 0, "crown": 0, "hoarder": 0, "chaos": 0, "polish": 0, "mechanist": 0}
 	run_cores = {"repeater": 0, "scatter": 0, "piercer": 0, "sprayer": 0, "cleaver": 0, "duelist": 0, "whirlwind": 0, "throwing": 0}
 	_set_decision_buttons(false, false)
 
@@ -2096,6 +2120,8 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 
 	var text: String = "[font_size=18][color=%s][b]%s[/b][/color][/font_size]" % [color_hex, name_value]
 	text += "\n[color=#f6d05f][b]₵%d[/b][/color]   [color=#747b87]%s • %s • ilvl %d[/color]" % [value, rarity, type_text, item_level]
+	if rarity != "Common":
+		text += "\n[color=#6f6758]MODIFIERS %d/%d[/color]" % [_item_affix_count(item), _rarity_affix_cap(rarity)]
 
 	match slot:
 		"weapon":
@@ -2668,7 +2694,16 @@ func _close_crafting_panel() -> void:
 func _refresh_crafting_panel() -> void:
 	if crafting_panel == null:
 		return
-	crafting_currency_label.text = "[color=#82745a][font_size=10]MATERIALS[/font_size][/color]   [color=#d5d0c6]Scrap[/color] %d    [color=#d5d0c6]Mutation[/color] %d    [color=#d5d0c6]Chaos[/color] %d    [color=#d5d0c6]Mechanist[/color] %d" % [int(stash_crafting.get("scrap", 0)), int(stash_crafting.get("mutation", 0)), int(stash_crafting.get("chaos", 0)), int(stash_crafting.get("mechanist", 0))]
+	crafting_currency_label.text = "[color=#82745a][font_size=10]MATERIALS[/font_size][/color]  Mut %d  Spl %d  Scr %d  Crn %d  Hrd %d  Chs %d  Pol %d  Mec %d" % [
+		int(stash_crafting.get("mutation", 0)),
+		int(stash_crafting.get("splice", 0)),
+		int(stash_crafting.get("scrap", 0)),
+		int(stash_crafting.get("crown", 0)),
+		int(stash_crafting.get("hoarder", 0)),
+		int(stash_crafting.get("chaos", 0)),
+		int(stash_crafting.get("polish", 0)),
+		int(stash_crafting.get("mechanist", 0))
+	]
 	_refresh_crafting_sources()
 
 	var item: Dictionary = _get_crafting_target_item()
@@ -2685,9 +2720,12 @@ func _refresh_crafting_panel() -> void:
 
 	crafting_item_label.text = _item_to_bbcode(item)
 	var rarity: String = String(item.get("rarity", "Common"))
+	var affix_count: int = _item_affix_count(item)
+	var affix_cap: int = _rarity_affix_cap(rarity)
 	var is_weapon: bool = String(item.get("slot", "")) == "weapon"
 	var weapon_archetype: String = String(item.get("weapon_archetype", "gun"))
 	var current_core: String = String(item.get("core_id", "repeater"))
+
 	for core_id_variant: Variant in core_buttons.keys():
 		var core_id: String = String(core_id_variant)
 		var core_button_variant: Variant = core_buttons.get(core_id)
@@ -2699,37 +2737,38 @@ func _refresh_crafting_panel() -> void:
 			core_button.text = "%s  x%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), "  • SLOTTED" if slotted else ""]
 			core_button.disabled = not compatible or slotted or int(stash_cores.get(core_id, 0)) <= 0
 			core_button.add_theme_stylebox_override("normal", _arpg_button_style(slotted, false))
-			core_button.add_theme_color_override("font_color", Color(0.92, 0.78, 0.50) if slotted else Color(0.72, 0.69, 0.62))
 
-	var affix_count: int = _item_affix_count(item)
-	var mechanic_count: int = _item_mechanic_count(item)
+	_set_craft_button_state("mutation", rarity == "Common" and int(stash_crafting.get("mutation", 0)) > 0)
+	_set_craft_button_state("splice", rarity == "Magic" and affix_count < 2 and int(stash_crafting.get("splice", 0)) > 0)
+	_set_craft_button_state("scrap", rarity == "Magic" and int(stash_crafting.get("scrap", 0)) > 0)
+	_set_craft_button_state("crown", claim_tier >= 2 and rarity == "Magic" and int(stash_crafting.get("crown", 0)) > 0)
+	_set_craft_button_state("hoarder", claim_tier >= 2 and (rarity == "Rare" or rarity == "Gilded") and affix_count < affix_cap and int(stash_crafting.get("hoarder", 0)) > 0)
+	_set_craft_button_state("chaos", claim_tier >= 2 and (rarity == "Rare" or rarity == "Gilded") and affix_count > 0 and int(stash_crafting.get("chaos", 0)) > 0)
+	_set_craft_button_state("polish", claim_tier >= 3 and rarity != "Common" and affix_count > 0 and int(stash_crafting.get("polish", 0)) > 0)
+	_set_craft_button_state("mechanist", claim_tier >= 3 and rarity != "Common" and int(stash_crafting.get("mechanist", 0)) > 0)
 
-	var scrap_button_variant: Variant = crafting_buttons.get("scrap")
-	if scrap_button_variant is Button:
-		(scrap_button_variant as Button).text = "SCRAP ORB  x%d\nReroll modifier values" % int(stash_crafting.get("scrap", 0))
-	var mutation_button_variant: Variant = crafting_buttons.get("mutation")
-	if mutation_button_variant is Button:
-		(mutation_button_variant as Button).text = "MUTATION SHARD  x%d\nUpgrade Common → Magic" % int(stash_crafting.get("mutation", 0))
-
-	_set_craft_button_state("scrap", int(stash_crafting.get("scrap", 0)) > 0 and affix_count > 0)
-	_set_craft_button_state("mutation", int(stash_crafting.get("mutation", 0)) > 0 and rarity == "Common")
-	_set_craft_button_state("chaos", claim_tier >= 2 and int(stash_crafting.get("chaos", 0)) > 0 and rarity != "Common" and affix_count > 0)
-	_set_craft_button_state("mechanist", claim_tier >= 3 and int(stash_crafting.get("mechanist", 0)) > 0 and mechanic_count > 0)
-
-	var chaos_button_variant: Variant = crafting_buttons.get("chaos")
-	if chaos_button_variant is Button:
-		var chaos_button := chaos_button_variant as Button
-		if claim_tier >= 2:
-			chaos_button.text = "CHAOS TOKEN  x%d\nReroll all normal modifiers" % int(stash_crafting.get("chaos", 0))
-		else:
-			chaos_button.text = "CHAOS TOKEN\nLocked until Claim T2"
-	var mechanic_button_variant: Variant = crafting_buttons.get("mechanist")
-	if mechanic_button_variant is Button:
-		var mechanic_button := mechanic_button_variant as Button
-		if claim_tier >= 3:
-			mechanic_button.text = "MECHANIST'S SEAL  x%d\nReroll one Augment" % int(stash_crafting.get("mechanist", 0))
-		else:
-			mechanic_button.text = "MECHANIST'S SEAL\nLocked until Claim T3"
+	var labels: Dictionary = {
+		"mutation":"MUTATION SHARD  x%d\nCommon → Magic + 1 modifier" % int(stash_crafting.get("mutation", 0)),
+		"splice":"SPLICE SHARD  x%d\nAdd 1 modifier to Magic" % int(stash_crafting.get("splice", 0)),
+		"scrap":"SCRAP ORB  x%d\nReforge Magic modifiers" % int(stash_crafting.get("scrap", 0)),
+		"crown":"CROWN TOKEN  x%d\nMagic → Rare, keep mods + add 1" % int(stash_crafting.get("crown", 0)),
+		"hoarder":"HOARDER'S ORB  x%d\nAdd 1 modifier to Rare" % int(stash_crafting.get("hoarder", 0)),
+		"chaos":"CHAOS TOKEN  x%d\nReplace 1 random Rare modifier" % int(stash_crafting.get("chaos", 0)),
+		"polish":"POLISH ORB  x%d\nReroll values, keep tiers" % int(stash_crafting.get("polish", 0)),
+		"mechanist":"MECHANIST'S SEAL  x%d\nAdd or reroll an Augment" % int(stash_crafting.get("mechanist", 0))
+	}
+	for key_variant: Variant in labels.keys():
+		var key: String = String(key_variant)
+		var button_variant: Variant = crafting_buttons.get(key)
+		if button_variant is Button:
+			var button := button_variant as Button
+			button.text = String(labels[key])
+			if key == "crown" and claim_tier < 2:
+				button.text = "CROWN TOKEN\nLocked until Claim T2"
+			elif (key == "hoarder" or key == "chaos") and claim_tier < 2:
+				button.text = "%s\nLocked until Claim T2" % _craft_currency_name(key).to_upper()
+			elif (key == "polish" or key == "mechanist") and claim_tier < 3:
+				button.text = "%s\nLocked until Claim T3" % _craft_currency_name(key).to_upper()
 
 func _refresh_crafting_sources() -> void:
 	for slot_name: String in ["weapon", "armor", "charm"]:
@@ -2833,111 +2872,44 @@ func _slot_core(core_id: String) -> void:
 
 func _rarity_affix_cap(rarity: String) -> int:
 	match rarity:
-		"Gilded": return 3
-		"Rare": return 2
-		"Magic": return 1
+		"Gilded": return 4
+		"Rare": return 4
+		"Magic": return 2
 		_: return 0
 
-func _improve_random_affix_tier(item: Dictionary) -> bool:
-	var affixes_variant: Variant = item.get("affixes", [])
-	if typeof(affixes_variant) != TYPE_ARRAY:
-		return false
-	var affixes: Array = (affixes_variant as Array).duplicate(true)
-	var candidates: Array[int] = []
-	var best_allowed: int = _best_affix_tier()
-	for i in range(affixes.size()):
-		if typeof(affixes[i]) != TYPE_DICTIONARY:
-			continue
-		var affix: Dictionary = affixes[i] as Dictionary
-		var tier: int = int(affix.get("tier", 5))
-		if tier > best_allowed:
-			candidates.append(i)
-	if candidates.is_empty():
-		return false
-	var target_index: int = candidates[rng.randi_range(0, candidates.size() - 1)]
-	var target: Dictionary = affixes[target_index] as Dictionary
-	var new_tier: int = maxi(best_allowed, int(target.get("tier", 5)) - 1)
-	var stat: String = String(target.get("stat", "damage"))
-	affixes[target_index] = _make_affix_record(stat, new_tier, _roll_affix_value(stat, new_tier))
-	item["affixes"] = affixes
-	_rebuild_item_stats(item)
-	return true
-
-func _worsen_random_affix_tier(item: Dictionary) -> bool:
-	var affixes_variant: Variant = item.get("affixes", [])
-	if typeof(affixes_variant) != TYPE_ARRAY:
-		return false
-	var affixes: Array = (affixes_variant as Array).duplicate(true)
-	var candidates: Array[int] = []
-	for i in range(affixes.size()):
-		if typeof(affixes[i]) == TYPE_DICTIONARY and int((affixes[i] as Dictionary).get("tier", 5)) < 5:
-			candidates.append(i)
-	if candidates.is_empty():
-		return false
-	var target_index: int = candidates[rng.randi_range(0, candidates.size() - 1)]
-	var target: Dictionary = affixes[target_index] as Dictionary
-	var new_tier: int = mini(5, int(target.get("tier", 5)) + 1)
-	var stat: String = String(target.get("stat", "damage"))
-	affixes[target_index] = _make_affix_record(stat, new_tier, _roll_affix_value(stat, new_tier))
-	item["affixes"] = affixes
-	_rebuild_item_stats(item)
-	return true
-
-func _add_random_affix(item: Dictionary) -> bool:
-	var rarity: String = String(item.get("rarity", "Common"))
-	if _item_affix_count(item) >= _rarity_affix_cap(rarity):
-		return false
-	var used_stats: Array[String] = []
-	var affixes_variant: Variant = item.get("affixes", [])
-	var affixes: Array = []
-	if typeof(affixes_variant) == TYPE_ARRAY:
-		affixes = (affixes_variant as Array).duplicate(true)
-		for affix_variant: Variant in affixes:
-			if typeof(affix_variant) == TYPE_DICTIONARY:
-				used_stats.append(String((affix_variant as Dictionary).get("stat", "")))
+func _roll_unique_affix(item: Dictionary, used_stats: Array[String]) -> Dictionary:
 	var available: Array[String] = []
 	for candidate: String in _affix_candidates(String(item.get("slot", "charm"))):
 		if not used_stats.has(candidate):
 			available.append(candidate)
 	if available.is_empty():
-		return false
+		return {}
 	var stat: String = available[rng.randi_range(0, available.size() - 1)]
 	var tier: int = _roll_affix_tier(maxi(1, int(item.get("depth", 1))))
-	affixes.append(_make_affix_record(stat, tier, _roll_affix_value(stat, tier)))
+	return _make_affix_record(stat, tier, _roll_affix_value(stat, tier))
+
+func _used_affix_stats(item: Dictionary) -> Array[String]:
+	var used: Array[String] = []
+	var affixes_variant: Variant = item.get("affixes", [])
+	if typeof(affixes_variant) == TYPE_ARRAY:
+		var affixes: Array = affixes_variant as Array
+		for affix_variant: Variant in affixes:
+			if typeof(affix_variant) == TYPE_DICTIONARY:
+				used.append(String((affix_variant as Dictionary).get("stat", "")))
+	return used
+
+func _append_random_affix(item: Dictionary) -> bool:
+	if _item_affix_count(item) >= _rarity_affix_cap(String(item.get("rarity", "Common"))):
+		return false
+	var affix: Dictionary = _roll_unique_affix(item, _used_affix_stats(item))
+	if affix.is_empty():
+		return false
+	var affixes_variant: Variant = item.get("affixes", [])
+	var affixes: Array = (affixes_variant as Array).duplicate(true) if typeof(affixes_variant) == TYPE_ARRAY else []
+	affixes.append(affix)
 	item["affixes"] = affixes
 	_rebuild_item_stats(item)
 	return true
-
-func _craft_scrap() -> void:
-	if int(stash_crafting.get("scrap", 0)) <= 0:
-		return
-	var item: Dictionary = _get_crafting_target_item()
-	if item.is_empty():
-		return
-	var affixes_variant: Variant = item.get("affixes", [])
-	if typeof(affixes_variant) != TYPE_ARRAY or (affixes_variant as Array).is_empty():
-		return
-
-	var rerolled: Array[Dictionary] = []
-	var affixes: Array = affixes_variant as Array
-	for affix_variant: Variant in affixes:
-		if typeof(affix_variant) != TYPE_DICTIONARY:
-			continue
-		var affix: Dictionary = affix_variant as Dictionary
-		var stat: String = String(affix.get("stat", "damage"))
-		var tier: int = int(affix.get("tier", 5))
-		var value: float = _roll_affix_value(stat, tier)
-		rerolled.append(_make_affix_record(stat, tier, value))
-	item["affixes"] = rerolled
-	_rebuild_item_stats(item)
-	var scrap_outcome: String = "SCRAP SLAMMED — values rerolled."
-	if rng.randf() < 0.20 and _improve_random_affix_tier(item):
-		scrap_outcome = "GREAT SLAM — one modifier jumped a tier."
-	_finalize_crafted_item(item)
-	_store_crafting_target_item(item)
-	_spend_crafting_currency("scrap")
-	crafting_feedback_label.text = scrap_outcome
-	_after_craft()
 
 func _craft_mutation() -> void:
 	if int(stash_crafting.get("mutation", 0)) <= 0:
@@ -2945,111 +2917,159 @@ func _craft_mutation() -> void:
 	var item: Dictionary = _get_crafting_target_item()
 	if item.is_empty() or String(item.get("rarity", "Common")) != "Common":
 		return
-
 	item["rarity"] = "Magic"
-	var mechanics: Array[Dictionary] = []
-	var mechanic: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), [], false, String(item.get("weapon_archetype", "")))
-	if not mechanic.is_empty():
-		mechanics.append(mechanic)
-	item["mechanics"] = mechanics
-
-	var candidates: Array[String] = _affix_candidates(String(item.get("slot", "charm")))
-	var stat: String = candidates[rng.randi_range(0, candidates.size() - 1)]
-	var tier: int = _roll_affix_tier(maxi(1, int(item.get("depth", 1))))
-	var value: float = _roll_affix_value(stat, tier)
-	item["affixes"] = [_make_affix_record(stat, tier, value)]
-	var mutation_outcome: String = "MUTATED — the item is now Magic."
-	if claim_tier >= 2 and rng.randf() < 0.16:
-		item["rarity"] = "Rare"
-		_add_random_affix(item)
-		mutation_outcome = "JACKPOT MUTATION — it jumped straight to Rare."
-	elif rng.randf() < 0.22 and _improve_random_affix_tier(item):
-		mutation_outcome = "HOT MUTATION — the new modifier rolled a stronger tier."
-	_rebuild_item_stats(item)
+	item["affixes"] = []
+	_append_random_affix(item)
 	_finalize_crafted_item(item)
 	_store_crafting_target_item(item)
 	_spend_crafting_currency("mutation")
-	crafting_feedback_label.text = mutation_outcome
+	crafting_feedback_label.text = "MUTATED — Magic item created with one random modifier."
+	_after_craft()
+
+func _craft_splice() -> void:
+	if int(stash_crafting.get("splice", 0)) <= 0:
+		return
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty() or String(item.get("rarity", "Common")) != "Magic" or _item_affix_count(item) >= 2:
+		return
+	if not _append_random_affix(item):
+		return
+	_finalize_crafted_item(item)
+	_store_crafting_target_item(item)
+	_spend_crafting_currency("splice")
+	crafting_feedback_label.text = "SPLICED — one random modifier added. Existing rolls survived."
+	_after_craft()
+
+func _craft_scrap() -> void:
+	if int(stash_crafting.get("scrap", 0)) <= 0:
+		return
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty() or String(item.get("rarity", "Common")) != "Magic":
+		return
+	item["affixes"] = []
+	var mod_count: int = 2 if rng.randf() < 0.45 else 1
+	for _i in range(mod_count):
+		if not _append_random_affix(item):
+			break
+	_finalize_crafted_item(item)
+	_store_crafting_target_item(item)
+	_spend_crafting_currency("scrap")
+	crafting_feedback_label.text = "SCRAPPED — Magic modifiers completely reforged."
+	_after_craft()
+
+func _craft_crown() -> void:
+	if claim_tier < 2 or int(stash_crafting.get("crown", 0)) <= 0:
+		return
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty() or String(item.get("rarity", "Common")) != "Magic":
+		return
+	item["rarity"] = "Rare"
+	_append_random_affix(item)
+	_finalize_crafted_item(item)
+	_store_crafting_target_item(item)
+	_spend_crafting_currency("crown")
+	crafting_feedback_label.text = "CROWNED — your Magic rolls survived and the item became Rare."
+	_after_craft()
+
+func _craft_hoarder() -> void:
+	if claim_tier < 2 or int(stash_crafting.get("hoarder", 0)) <= 0:
+		return
+	var item: Dictionary = _get_crafting_target_item()
+	var rarity: String = String(item.get("rarity", "Common"))
+	if item.is_empty() or (rarity != "Rare" and rarity != "Gilded"):
+		return
+	if not _append_random_affix(item):
+		return
+	_finalize_crafted_item(item)
+	_store_crafting_target_item(item)
+	_spend_crafting_currency("hoarder")
+	crafting_feedback_label.text = "HOARDER SLAM — one new modifier added. No take-backs."
 	_after_craft()
 
 func _craft_chaos() -> void:
 	if claim_tier < 2 or int(stash_crafting.get("chaos", 0)) <= 0:
 		return
 	var item: Dictionary = _get_crafting_target_item()
-	if item.is_empty():
+	var rarity: String = String(item.get("rarity", "Common"))
+	if item.is_empty() or (rarity != "Rare" and rarity != "Gilded"):
 		return
-	var affix_count: int = _item_affix_count(item)
-	if affix_count <= 0 or String(item.get("rarity", "Common")) == "Common":
+	var affixes_variant: Variant = item.get("affixes", [])
+	if typeof(affixes_variant) != TYPE_ARRAY:
 		return
-
-	var candidates: Array[String] = _affix_candidates(String(item.get("slot", "charm")))
-	var used_stats: Array[String] = []
-	var new_affixes: Array[Dictionary] = []
-	while new_affixes.size() < affix_count:
-		var available: Array[String] = []
-		for candidate: String in candidates:
-			if not used_stats.has(candidate):
-				available.append(candidate)
-		if available.is_empty():
-			break
-		var stat: String = available[rng.randi_range(0, available.size() - 1)]
-		var tier: int = _roll_affix_tier(maxi(1, int(item.get("depth", 1))))
-		var value: float = _roll_affix_value(stat, tier)
-		new_affixes.append(_make_affix_record(stat, tier, value))
-		used_stats.append(stat)
-	item["affixes"] = new_affixes
+	var affixes: Array = (affixes_variant as Array).duplicate(true)
+	if affixes.is_empty():
+		return
+	affixes.remove_at(rng.randi_range(0, affixes.size() - 1))
+	item["affixes"] = affixes
 	_rebuild_item_stats(item)
-	var chaos_roll: float = rng.randf()
-	var chaos_outcome: String = "CHAOS SLAMMED — everything normal got rerolled."
-	if chaos_roll < 0.18 and _improve_random_affix_tier(item):
-		chaos_outcome = "CHAOS HIGH-ROLL — one modifier jumped a tier."
-	elif chaos_roll > 0.90 and _worsen_random_affix_tier(item):
-		chaos_outcome = "CHAOS BRICK — one modifier dropped a tier."
+	_append_random_affix(item)
 	_finalize_crafted_item(item)
 	_store_crafting_target_item(item)
 	_spend_crafting_currency("chaos")
-	crafting_feedback_label.text = chaos_outcome
+	crafting_feedback_label.text = "CHAOS SLAMMED — one modifier was sacrificed for a random replacement."
+	_after_craft()
+
+func _craft_polish() -> void:
+	if claim_tier < 3 or int(stash_crafting.get("polish", 0)) <= 0:
+		return
+	var item: Dictionary = _get_crafting_target_item()
+	if item.is_empty() or String(item.get("rarity", "Common")) == "Common":
+		return
+	var affixes_variant: Variant = item.get("affixes", [])
+	if typeof(affixes_variant) != TYPE_ARRAY or (affixes_variant as Array).is_empty():
+		return
+	var polished: Array[Dictionary] = []
+	var affixes: Array = affixes_variant as Array
+	for affix_variant: Variant in affixes:
+		if typeof(affix_variant) != TYPE_DICTIONARY:
+			continue
+		var affix: Dictionary = affix_variant as Dictionary
+		var stat: String = String(affix.get("stat", "damage"))
+		var tier: int = int(affix.get("tier", 5))
+		polished.append(_make_affix_record(stat, tier, _roll_affix_value(stat, tier)))
+	item["affixes"] = polished
+	_rebuild_item_stats(item)
+	_finalize_crafted_item(item)
+	_store_crafting_target_item(item)
+	_spend_crafting_currency("polish")
+	crafting_feedback_label.text = "POLISHED — modifier identities and tiers stayed; values rerolled."
 	_after_craft()
 
 func _craft_mechanist() -> void:
 	if claim_tier < 3 or int(stash_crafting.get("mechanist", 0)) <= 0:
 		return
 	var item: Dictionary = _get_crafting_target_item()
-	if item.is_empty():
+	if item.is_empty() or String(item.get("rarity", "Common")) == "Common":
 		return
 	var mechanics_variant: Variant = item.get("mechanics", [])
-	if typeof(mechanics_variant) != TYPE_ARRAY:
-		return
-	var mechanics: Array = (mechanics_variant as Array).duplicate(true)
-	if mechanics.is_empty():
-		return
-
-	var target_index: int = rng.randi_range(0, mechanics.size() - 1)
+	var mechanics: Array = (mechanics_variant as Array).duplicate(true) if typeof(mechanics_variant) == TYPE_ARRAY else []
+	var max_mechanics: int = 2 if String(item.get("rarity", "Common")) == "Gilded" else 1
 	var used_ids: Array[String] = []
-	for i in range(mechanics.size()):
-		if i == target_index or typeof(mechanics[i]) != TYPE_DICTIONARY:
-			continue
-		used_ids.append(String((mechanics[i] as Dictionary).get("id", "")))
-	var replacement: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), used_ids, true, String(item.get("weapon_archetype", "")))
-	if replacement.is_empty():
-		return
-	mechanics[target_index] = replacement
-	var mechanist_outcome: String = "MECHANIST SLAMMED — one Augment rerolled."
-	var rarity: String = String(item.get("rarity", "Common"))
-	if claim_tier >= 3 and (rarity == "Rare" or rarity == "Gilded") and mechanics.size() < 2 and rng.randf() < 0.18:
-		var used_after: Array[String] = []
-		for mechanic_variant: Variant in mechanics:
-			if typeof(mechanic_variant) == TYPE_DICTIONARY:
-				used_after.append(String((mechanic_variant as Dictionary).get("id", "")))
-		var bonus_mechanic: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), used_after, true, String(item.get("weapon_archetype", "")))
-		if not bonus_mechanic.is_empty():
-			mechanics.append(bonus_mechanic)
-			mechanist_outcome = "MECHANIST JACKPOT — a second Augment was forged onto the item."
+	for mechanic_variant: Variant in mechanics:
+		if typeof(mechanic_variant) == TYPE_DICTIONARY:
+			used_ids.append(String((mechanic_variant as Dictionary).get("id", "")))
+	if mechanics.size() < max_mechanics:
+		var added: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), used_ids, true, String(item.get("weapon_archetype", "")))
+		if added.is_empty():
+			return
+		mechanics.append(added)
+		crafting_feedback_label.text = "MECHANIST — a new Augment was installed."
+	else:
+		var target_index: int = rng.randi_range(0, mechanics.size() - 1)
+		var kept_ids: Array[String] = []
+		for i in range(mechanics.size()):
+			if i == target_index or typeof(mechanics[i]) != TYPE_DICTIONARY:
+				continue
+			kept_ids.append(String((mechanics[i] as Dictionary).get("id", "")))
+		var replacement: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), kept_ids, true, String(item.get("weapon_archetype", "")))
+		if replacement.is_empty():
+			return
+		mechanics[target_index] = replacement
+		crafting_feedback_label.text = "MECHANIST — one Augment was rerolled."
 	item["mechanics"] = mechanics
 	_finalize_crafted_item(item)
 	_store_crafting_target_item(item)
 	_spend_crafting_currency("mechanist")
-	crafting_feedback_label.text = mechanist_outcome
 	_after_craft()
 
 func _after_craft() -> void:
@@ -3096,17 +3116,34 @@ func _finalize_crafted_item(item: Dictionary) -> void:
 
 func _craft_currency_name(key: String) -> String:
 	match key:
-		"scrap": return "Scrap Orb"
 		"mutation": return "Mutation Shard"
+		"splice": return "Splice Shard"
+		"scrap": return "Scrap Orb"
+		"crown": return "Crown Token"
+		"hoarder": return "Hoarder's Orb"
 		"chaos": return "Chaos Token"
+		"polish": return "Polish Orb"
 		"mechanist": return "Mechanist's Seal"
 		_: return key.capitalize()
 
 func _crafting_inventory_value(inventory: Dictionary) -> int:
-	return int(inventory.get("scrap", 0)) * 60 + int(inventory.get("mutation", 0)) * 180 + int(inventory.get("chaos", 0)) * 600 + int(inventory.get("mechanist", 0)) * 1800
+	return (
+		int(inventory.get("mutation", 0)) * 90 +
+		int(inventory.get("splice", 0)) * 110 +
+		int(inventory.get("scrap", 0)) * 70 +
+		int(inventory.get("crown", 0)) * 320 +
+		int(inventory.get("hoarder", 0)) * 700 +
+		int(inventory.get("chaos", 0)) * 650 +
+		int(inventory.get("polish", 0)) * 1200 +
+		int(inventory.get("mechanist", 0)) * 1800
+	)
 
 func _crafting_inventory_count(inventory: Dictionary) -> int:
-	return int(inventory.get("scrap", 0)) + int(inventory.get("mutation", 0)) + int(inventory.get("chaos", 0)) + int(inventory.get("mechanist", 0))
+	var total: int = 0
+	var keys: Array[String] = ["mutation", "splice", "scrap", "crown", "hoarder", "chaos", "polish", "mechanist"]
+	for key: String in keys:
+		total += int(inventory.get(key, 0))
+	return total
 
 func _core_inventory_value(inventory: Dictionary) -> int:
 	return _core_inventory_count(inventory) * 250
@@ -3270,7 +3307,7 @@ func _load_save() -> void:
 	var crafting_variant: Variant = data.get("crafting", {})
 	if typeof(crafting_variant) == TYPE_DICTIONARY:
 		var loaded_crafting: Dictionary = crafting_variant as Dictionary
-		var crafting_keys: Array[String] = ["scrap", "mutation", "chaos", "mechanist"]
+		var crafting_keys: Array[String] = ["mutation", "splice", "scrap", "crown", "hoarder", "chaos", "polish", "mechanist"]
 		for currency_key: String in crafting_keys:
 			stash_crafting[currency_key] = maxi(0, int(loaded_crafting.get(currency_key, 0)))
 	next_item_id = int(data.get("next_item_id", 1))
@@ -3303,7 +3340,7 @@ func _wipe_save() -> void:
 	stash_coins = 0
 	stash_seals = 5
 	stash_gear.clear()
-	stash_crafting = {"scrap": 0, "mutation": 0, "chaos": 0, "mechanist": 0}
+	stash_crafting = {"scrap": 0, "mutation": 0, "splice": 0, "crown": 0, "hoarder": 0, "chaos": 0, "polish": 0, "mechanist": 0}
 	stash_cores = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1, "cleaver": 1, "duelist": 1, "whirlwind": 1, "throwing": 1}
 	equipped = {"weapon": {}, "armor": {}, "charm": {}}
 	next_item_id = 1
