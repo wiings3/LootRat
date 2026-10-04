@@ -12,7 +12,8 @@ var attack_speed: float = 4.0
 var projectile_speed: float = 760.0
 var currency_find: float = 0.0
 var item_find: float = 0.0
-var weapon_type: String = "repeater"
+var weapon_archetype: String = "gun"
+var weapon_core: String = "repeater"
 var dash_speed: float = 720.0
 var dash_duration: float = 0.12
 var dash_cooldown: float = 0.85
@@ -74,7 +75,8 @@ func configure(stats: Dictionary) -> void:
 	attack_speed = float(stats.get("attack_speed", 4.0))
 	currency_find = float(stats.get("currency_find", 0.0))
 	item_find = float(stats.get("item_find", 0.0))
-	weapon_type = String(stats.get("weapon_type", "repeater"))
+	weapon_archetype = String(stats.get("weapon_archetype", "gun"))
+	weapon_core = String(stats.get("weapon_core", "repeater"))
 	dash_cooldown_mult = float(stats.get("dash_cooldown_mult", 1.0))
 	pickup_radius = float(stats.get("pickup_radius", 145.0))
 	gear_pickup_heal = float(stats.get("gear_pickup_heal", 0.0))
@@ -137,8 +139,8 @@ func _physics_process(delta: float) -> void:
 		_fire()
 
 func _weapon_rate_multiplier() -> float:
-	match weapon_type:
-		"scattergun": return 0.42
+	match weapon_core:
+		"scatter": return 0.42
 		"piercer": return 0.35
 		"sprayer": return 1.80
 		_: return 1.0
@@ -147,8 +149,8 @@ func _fire() -> void:
 	if projectile_parent == null:
 		return
 	var aim: Vector2 = Vector2.RIGHT.rotated(rotation)
-	match weapon_type:
-		"scattergun":
+	match weapon_core:
+		"scatter":
 			var pellet_count: int = 5 + bonus_projectiles * 2
 			for pellet in range(pellet_count):
 				var centered_index: float = float(pellet) - float(pellet_count - 1) * 0.5
@@ -177,7 +179,7 @@ func _spawn_projectile(dir: Vector2, shot_damage: float, shot_speed: float, pier
 	projectile.pierces = pierce_count + bonus_pierce
 	projectile.radius = radius * projectile_radius_mult
 	projectile.knockback_force = knockback_force * knockback_mult
-	projectile.weapon_type = weapon_type
+	projectile.core_id = weapon_core
 	projectile.origin_position = global_position
 	projectile.point_blank_bonus = point_blank_bonus
 	projectile.point_blank_range = point_blank_range
@@ -233,8 +235,8 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, 16.0, body_color)
 	draw_circle(Vector2.ZERO, 10.0, Color(0.08, 0.12, 0.17))
 	var gun_color := Color(0.85, 0.88, 0.92)
-	match weapon_type:
-		"scattergun": gun_color = Color(1.0, 0.62, 0.24)
+	match weapon_core:
+		"scatter": gun_color = Color(1.0, 0.62, 0.24)
 		"piercer": gun_color = Color(0.75, 0.45, 1.0)
 		"sprayer": gun_color = Color(0.38, 1.0, 0.62)
 	draw_rect(Rect2(8.0, -4.0, 23.0, 8.0), gun_color)
