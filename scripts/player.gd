@@ -46,6 +46,7 @@ var melee_range_mult: float = 1.0
 
 var _attack_timer: float = 0.0
 var _melee_flash_timer: float = 0.0
+var _active_recall_blade: LootProjectile = null
 var _dash_timer: float = 0.0
 var _dash_cd_timer: float = 0.0
 var _dash_dir: Vector2 = Vector2.ZERO
@@ -139,8 +140,16 @@ func _physics_process(delta: float) -> void:
 	global_position.y = clampf(global_position.y, world_bounds.position.y, world_bounds.end.y)
 
 	look_at(get_global_mouse_position())
-	if Input.is_action_pressed("attack") and _attack_timer <= 0.0:
-		var frenzy_mult: float = 1.0 + float(_frenzy_stacks) * 0.08
+	var frenzy_mult: float = 1.0 + float(_frenzy_stacks) * 0.08
+	if weapon_archetype == "blade" and weapon_core == "throwing":
+		if Input.is_action_just_pressed("attack") and _attack_timer <= 0.0:
+			if is_instance_valid(_active_recall_blade) and not _active_recall_blade.returning:
+				_active_recall_blade.force_return()
+				_attack_timer = 0.12
+			elif not is_instance_valid(_active_recall_blade):
+				_attack_timer = 1.0 / maxf(0.1, attack_speed * _weapon_rate_multiplier() * frenzy_mult)
+				_fire()
+	elif Input.is_action_pressed("attack") and _attack_timer <= 0.0:
 		_attack_timer = 1.0 / maxf(0.1, attack_speed * _weapon_rate_multiplier() * frenzy_mult)
 		_fire()
 
@@ -187,7 +196,7 @@ func _fire_blade(aim: Vector2) -> void:
 		"whirlwind":
 			_melee_attack(aim, 78.0 * melee_range_mult, 360.0, damage * 0.80 * melee_damage_mult, 130.0)
 		"throwing":
-			_spawn_projectile(aim, damage * 1.15 * melee_damage_mult, projectile_speed * 0.82, 1, 7.0, 135.0)
+			_spawn_recall_blade(aim)
 		_:
 			_melee_attack(aim, 82.0 * melee_range_mult, 105.0, damage * 1.35 * melee_damage_mult, 185.0)
 
@@ -218,6 +227,23 @@ func _fire_parallel_shots(aim: Vector2, shot_damage: float, shot_speed: float, b
 		var centered_index: float = float(shot_index) - float(shot_count - 1) * 0.5
 		var spread: float = deg_to_rad(centered_index * 6.0)
 		_spawn_projectile(aim.rotated(spread), shot_damage, shot_speed, base_pierce, radius, knockback_force)
+
+func _spawn_recall_blade(aim: Vector2) -> void:
+	var projectile := LootProjectile.new()
+	projectile.direction = aim.normalized()
+	projectile.damage = damage * 1.15 * melee_damage_mult
+	projectile.speed = projectile_speed * 0.78
+	projectile.pierces = 99
+	projectile.radius = 8.0 * projectile_radius_mult
+	projectile.knockback_force = 115.0 * knockback_mult
+	projectile.core_id = "throwing"
+	projectile.origin_position = global_position
+	projectile.return_target = self
+	projectile.return_distance = 310.0 * melee_range_mult
+	projectile.life = 3.0
+	projectile_parent.add_child(projectile)
+	projectile.global_position = global_position + aim.normalized() * 28.0
+	_active_recall_blade = projectile
 
 func _spawn_projectile(dir: Vector2, shot_damage: float, shot_speed: float, pierce_count: int, radius: float, knockback_force: float) -> void:
 	var projectile := LootProjectile.new()
@@ -294,6 +320,8 @@ func _draw() -> void:
 					draw_line(Vector2(22.0, 0.0), Vector2(115.0 * melee_range_mult, 0.0), flash_color, 7.0)
 				"whirlwind":
 					draw_arc(Vector2.ZERO, 78.0 * melee_range_mult, 0.0, TAU, 42, flash_color, 5.0)
+				"throwing":
+					draw_line(Vector2(22.0, 0.0), Vector2(48.0, 0.0), flash_color, 4.0)
 				_:
 					draw_arc(Vector2.ZERO, 82.0 * melee_range_mult, deg_to_rad(-52.5), deg_to_rad(52.5), 20, flash_color, 6.0)
 	else:
