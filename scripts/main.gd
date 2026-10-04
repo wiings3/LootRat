@@ -440,25 +440,35 @@ func _build_gear_panel() -> void:
 	inspector_panel.add_child(inspector_root)
 
 	var inspect_header := Label.new()
-	inspect_header.text = "ITEM"
-	inspect_header.add_theme_font_size_override("font_size", 14)
-	inspect_header.add_theme_color_override("font_color", Color(0.64, 0.61, 0.54))
+	inspect_header.text = "INSPECT"
+	inspect_header.add_theme_font_size_override("font_size", 11)
+	inspect_header.add_theme_color_override("font_color", Color(0.42, 0.43, 0.46))
 	inspector_root.add_child(inspect_header)
 
 	selected_item_label = RichTextLabel.new()
 	selected_item_label.bbcode_enabled = true
 	selected_item_label.fit_content = false
 	selected_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	selected_item_label.custom_minimum_size = Vector2(215.0, 315.0)
+	selected_item_label.custom_minimum_size = Vector2(215.0, 318.0)
 	selected_item_label.add_theme_font_size_override("normal_font_size", 13)
+	selected_item_label.add_theme_constant_override("line_separation", 2)
 	inspector_root.add_child(selected_item_label)
 
-	selected_equip_button = _make_button("EQUIP", _equip_selected_item, Vector2(215.0, 34.0))
-	selected_equip_button.add_theme_font_size_override("font_size", 12)
+	selected_equip_button = _make_button("EQUIP", _equip_selected_item, Vector2(215.0, 38.0))
+	selected_equip_button.add_theme_font_size_override("font_size", 13)
+	var equip_style := StyleBoxFlat.new()
+	equip_style.bg_color = Color(0.18, 0.24, 0.17)
+	equip_style.border_color = Color(0.44, 0.66, 0.36)
+	equip_style.border_width_left = 1
+	equip_style.border_width_top = 1
+	equip_style.border_width_right = 1
+	equip_style.border_width_bottom = 1
+	selected_equip_button.add_theme_stylebox_override("normal", equip_style)
 	inspector_root.add_child(selected_equip_button)
 
-	selected_sell_button = _make_button("SELL", _sell_selected_item, Vector2(215.0, 34.0))
-	selected_sell_button.add_theme_font_size_override("font_size", 12)
+	selected_sell_button = _make_button("SELL  •  TAKE COINS", _sell_selected_item, Vector2(215.0, 32.0))
+	selected_sell_button.add_theme_font_size_override("font_size", 11)
+	selected_sell_button.add_theme_color_override("font_color", Color(0.62, 0.62, 0.64))
 	inspector_root.add_child(selected_sell_button)
 
 	var footer := HBoxContainer.new()
@@ -1556,14 +1566,16 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 	var value: int = int(item.get("value", 0))
 	var item_level: int = int(item.get("item_level", item.get("depth", 1)))
 	var base_name: String = String(item.get("base_name", "Legacy Gear"))
-	var text: String = "[color=%s][b]%s[/b][/color]  [color=#f6d05f]~₵%d[/color]" % [color_hex, name_value, value]
+	var slot: String = String(item.get("slot", "gear"))
+	var type_text: String = base_name
+	if slot == "weapon":
+		type_text = String(item.get("weapon_type", "repeater")).capitalize()
 
 	if compact:
-		return text + "\n[color=#737c8d]%s  •  ilvl %d[/color]" % [base_name, item_level]
+		return "[color=%s][b]%s[/b][/color]\n[color=#737c8d]%s • ilvl %d[/color]" % [color_hex, name_value, type_text, item_level]
 
-	text += "\n[color=#737c8d]%s  •  %s  •  ilvl %d[/color]" % [rarity, base_name, item_level]
-	if String(item.get("slot", "")) == "weapon":
-		text += "\n[color=#8d96a6]Weapon: %s[/color]" % String(item.get("weapon_type", "repeater")).capitalize()
+	var text: String = "[font_size=18][color=%s][b]%s[/b][/color][/font_size]" % [color_hex, name_value]
+	text += "\n[color=#f6d05f][b]₵%d[/b][/color]   [color=#747b87]%s • %s • ilvl %d[/color]" % [value, rarity, type_text, item_level]
 
 	var implicit_variant: Variant = item.get("implicit", {})
 	if typeof(implicit_variant) == TYPE_DICTIONARY:
@@ -1571,30 +1583,64 @@ func _item_to_bbcode(item: Dictionary, compact: bool = false) -> String:
 		if not implicit.is_empty():
 			var implicit_stat: String = String(implicit.get("stat", ""))
 			var implicit_value: float = float(implicit.get("value", 0.0))
-			text += "\n[color=#d4bd70]Implicit  %s[/color]" % _format_stat_value(implicit_stat, implicit_value)
+			text += "\n\n[color=#777f8d][font_size=11]IMPLICIT[/font_size][/color]"
+			text += "\n[color=#e2c768][b]%s[/b][/color]" % _format_stat_value(implicit_stat, implicit_value)
 
 	var mechanics_variant: Variant = item.get("mechanics", [])
 	if typeof(mechanics_variant) == TYPE_ARRAY:
-		for mechanic_variant: Variant in mechanics_variant as Array:
-			if typeof(mechanic_variant) != TYPE_DICTIONARY:
-				continue
-			var mechanic: Dictionary = mechanic_variant as Dictionary
-			text += "\n[color=#ffb45d][b]◆ %s[/b][/color]" % String(mechanic.get("name", "Mechanic"))
-			text += "\n[color=#aeb6c4]%s[/color]" % String(mechanic.get("description", ""))
+		var mechanics: Array = mechanics_variant as Array
+		if not mechanics.is_empty():
+			text += "\n\n[color=#777f8d][font_size=11]MECHANICS[/font_size][/color]"
+			for mechanic_variant: Variant in mechanics:
+				if typeof(mechanic_variant) != TYPE_DICTIONARY:
+					continue
+				var mechanic: Dictionary = mechanic_variant as Dictionary
+				var mechanic_name: String = String(mechanic.get("name", "Mechanic"))
+				var mechanic_description: String = _compact_mechanic_description(mechanic)
+				text += "\n[color=#ffb45d][b]◆ %s[/b][/color]" % mechanic_name
+				if not mechanic_description.is_empty():
+					text += "\n[color=#b8bec8]%s[/color]" % mechanic_description
 
 	var affixes_variant: Variant = item.get("affixes", [])
 	if typeof(affixes_variant) == TYPE_ARRAY:
 		var affix_array: Array = affixes_variant as Array
-		for affix_variant: Variant in affix_array:
-			if typeof(affix_variant) != TYPE_DICTIONARY:
-				continue
-			var affix: Dictionary = affix_variant as Dictionary
-			var affix_stat: String = String(affix.get("stat", ""))
-			var affix_value: float = float(affix.get("value", 0.0))
-			var tier: int = int(affix.get("tier", 5))
-			text += "\n[color=#6f7888][T%d][/color] %s" % [tier, _format_stat_value(affix_stat, affix_value)]
+		if not affix_array.is_empty():
+			text += "\n\n[color=#777f8d][font_size=11]AFFIXES[/font_size][/color]"
+			for affix_variant: Variant in affix_array:
+				if typeof(affix_variant) != TYPE_DICTIONARY:
+					continue
+				var affix: Dictionary = affix_variant as Dictionary
+				var affix_stat: String = String(affix.get("stat", ""))
+				var affix_value: float = float(affix.get("value", 0.0))
+				var tier: int = int(affix.get("tier", 5))
+				text += "\n[color=#858d99]T%d[/color]  [color=#e6e8ec]%s[/color]" % [tier, _format_stat_value(affix_stat, affix_value)]
 
 	return text
+
+func _compact_mechanic_description(mechanic: Dictionary) -> String:
+	match String(mechanic.get("id", "")):
+		"point_blank": return "+45% damage at close range"
+		"heavy_rounds": return "Larger shots • +90% knockback"
+		"split_chamber": return "Extra projectiles • lower per-shot damage"
+		"bore_rounds": return "+2 projectile pierce"
+		"ricochet": return "Shots bounce to 1 nearby enemy"
+		"kill_frenzy": return "Kills grant +8% fire rate • stacks 5×"
+		"quickstep": return "Dash cooldown -22%"
+		"adrenaline_lining": return "Taking damage grants +35% move speed"
+		"second_wind": return "Kills restore 1.5 HP"
+		"armored_greed": return "+20% Item Find • +15% damage taken"
+		"glass_rat": return "+30% move speed • -25% max HP"
+		"dead_mans_insurance": return "Survive lethal damage at 1 HP once per depth"
+		"magnet_heart": return "Greatly increased loot pickup radius"
+		"field_medic": return "Picking up gear restores 8 HP"
+		"hoarders_bargain": return "+25% Currency Find • -15% max HP"
+		"treasure_scent": return "+7% Treasure Room chance"
+		"elite_tax": return "Elites +50% currency • normals -15%"
+		"hoarders_curse": return "+60% Currency Find • +30% damage taken"
+		"double_drop": return "10% chance for an extra gear drop"
+		"explosive_rounds": return "Kills explode for 45% of shot damage"
+		"kings_barrage": return "+2 projectiles • lower per-shot damage"
+		_: return String(mechanic.get("description", ""))
 
 func _rarity_color_hex(rarity: String) -> String:
 	match rarity:
@@ -1931,9 +1977,13 @@ func _refresh_selected_item() -> void:
 	var item: Dictionary = stash_gear[index]
 	var slot: String = String(item.get("slot", "charm"))
 	var current: Dictionary = equipped.get(slot, {}) as Dictionary
-	selected_item_label.text = "%s\n\n[color=#777f8d]VS EQUIPPED[/color]\n%s" % [_item_to_bbcode(item), _comparison_bbcode(item, current)]
+	var comparison: String = _comparison_bbcode(item, current)
+	selected_item_label.text = _item_to_bbcode(item)
+	if comparison != "[color=#8d96a6]No numerical or mechanical change.[/color]":
+		selected_item_label.text += "\n\n[color=#777f8d][font_size=11]VS EQUIPPED[/font_size][/color]\n%s" % comparison
 	selected_equip_button.disabled = false
 	selected_sell_button.disabled = false
+	selected_sell_button.text = "SELL  •  ₵%d" % int(item.get("value", 0))
 	if crafting_panel != null and crafting_panel.visible:
 		_refresh_crafting_panel()
 
