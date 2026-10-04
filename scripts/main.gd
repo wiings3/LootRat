@@ -1309,6 +1309,9 @@ func _calculate_player_stats() -> Dictionary:
 			stats["weapon_core"] = String(item.get("core_id", item.get("weapon_type", "repeater")))
 		_apply_item_mechanics_to_stats(stats, item)
 
+	if String(stats.get("weapon_archetype", "gun")) == "blade":
+		stats["damage_taken_mult"] = float(stats["damage_taken_mult"]) * 0.82
+		stats["dash_cooldown_mult"] = float(stats["dash_cooldown_mult"]) * 0.90
 	stats["max_hp"] = float(stats["max_hp"]) * float(stats["max_hp_mult"])
 	stats["move_speed"] = float(stats["move_speed"]) * float(stats["move_speed_mult"])
 	return stats
@@ -1364,6 +1367,9 @@ func _calculate_player_stats_with_override(override_slot: String, override_item:
 			stats["weapon_core"] = String(item.get("core_id", item.get("weapon_type", "repeater")))
 		_apply_item_mechanics_to_stats(stats, item)
 
+	if String(stats.get("weapon_archetype", "gun")) == "blade":
+		stats["damage_taken_mult"] = float(stats["damage_taken_mult"]) * 0.82
+		stats["dash_cooldown_mult"] = float(stats["dash_cooldown_mult"]) * 0.90
 	stats["max_hp"] = float(stats["max_hp"]) * float(stats["max_hp_mult"])
 	stats["move_speed"] = float(stats["move_speed"]) * float(stats["move_speed_mult"])
 	return stats
@@ -1426,19 +1432,19 @@ func _blade_output_bbcode(item: Dictionary, stats: Dictionary) -> String:
 	var attack_speed: float = float(stats.get("attack_speed", 4.0))
 	var hit_damage: float = base_damage * melee_mult
 	var rate_mult: float = 1.0
-	var reach: float = 82.0 * range_mult
+	var reach: float = 98.0 * range_mult
 	var shape_text: String = "105° ARC"
 
 	match core_id:
 		"duelist":
-			hit_damage *= 0.90
-			rate_mult = 1.35
-			reach = 115.0 * range_mult
+			hit_damage *= 1.18
+			rate_mult = 1.42
+			reach = 132.0 * range_mult
 			shape_text = "35° STAB"
 		"whirlwind":
-			hit_damage *= 0.80
-			rate_mult = 0.62
-			reach = 78.0 * range_mult
+			hit_damage *= 1.05
+			rate_mult = 0.70
+			reach = 94.0 * range_mult
 			shape_text = "360° SPIN"
 		"throwing":
 			hit_damage *= 1.15
@@ -1446,8 +1452,8 @@ func _blade_output_bbcode(item: Dictionary, stats: Dictionary) -> String:
 			reach = 310.0 * range_mult
 			shape_text = "OUT + RETURN"
 		_:
-			hit_damage *= 1.35
-			rate_mult = 0.72
+			hit_damage *= 1.70
+			rate_mult = 0.78
 
 	var attacks_per_second: float = attack_speed * rate_mult
 	var sheet_dps: float = hit_damage * attacks_per_second
@@ -1546,17 +1552,17 @@ func _weapon_sheet_dps_from_stats(stats: Dictionary) -> float:
 		var hit_damage: float = base_damage * float(stats.get("melee_damage_mult", 1.0))
 		match core_id:
 			"duelist":
-				hit_damage *= 0.90
-				attacks_per_second *= 1.35
+				hit_damage *= 1.18
+				attacks_per_second *= 1.42
 			"whirlwind":
-				hit_damage *= 0.80
-				attacks_per_second *= 0.62
+				hit_damage *= 1.05
+				attacks_per_second *= 0.70
 			"throwing":
 				hit_damage *= 2.30
 				attacks_per_second *= 0.80
 			_:
-				hit_damage *= 1.35
-				attacks_per_second *= 0.72
+				hit_damage *= 1.70
+				attacks_per_second *= 0.78
 		return hit_damage * attacks_per_second
 
 	var projectile_mult: float = float(stats.get("projectile_damage_mult", 1.0))
@@ -2825,6 +2831,83 @@ func _slot_core(core_id: String) -> void:
 	crafting_feedback_label.text = "%s CORE SLOTTED — %s returned to storage." % [_core_name(core_id).to_upper(), _core_name(old_core)]
 	_after_craft()
 
+func _rarity_affix_cap(rarity: String) -> int:
+	match rarity:
+		"Gilded": return 3
+		"Rare": return 2
+		"Magic": return 1
+		_: return 0
+
+func _improve_random_affix_tier(item: Dictionary) -> bool:
+	var affixes_variant: Variant = item.get("affixes", [])
+	if typeof(affixes_variant) != TYPE_ARRAY:
+		return false
+	var affixes: Array = (affixes_variant as Array).duplicate(true)
+	var candidates: Array[int] = []
+	var best_allowed: int = _best_affix_tier()
+	for i in range(affixes.size()):
+		if typeof(affixes[i]) != TYPE_DICTIONARY:
+			continue
+		var affix: Dictionary = affixes[i] as Dictionary
+		var tier: int = int(affix.get("tier", 5))
+		if tier > best_allowed:
+			candidates.append(i)
+	if candidates.is_empty():
+		return false
+	var target_index: int = candidates[rng.randi_range(0, candidates.size() - 1)]
+	var target: Dictionary = affixes[target_index] as Dictionary
+	var new_tier: int = maxi(best_allowed, int(target.get("tier", 5)) - 1)
+	var stat: String = String(target.get("stat", "damage"))
+	affixes[target_index] = _make_affix_record(stat, new_tier, _roll_affix_value(stat, new_tier))
+	item["affixes"] = affixes
+	_rebuild_item_stats(item)
+	return true
+
+func _worsen_random_affix_tier(item: Dictionary) -> bool:
+	var affixes_variant: Variant = item.get("affixes", [])
+	if typeof(affixes_variant) != TYPE_ARRAY:
+		return false
+	var affixes: Array = (affixes_variant as Array).duplicate(true)
+	var candidates: Array[int] = []
+	for i in range(affixes.size()):
+		if typeof(affixes[i]) == TYPE_DICTIONARY and int((affixes[i] as Dictionary).get("tier", 5)) < 5:
+			candidates.append(i)
+	if candidates.is_empty():
+		return false
+	var target_index: int = candidates[rng.randi_range(0, candidates.size() - 1)]
+	var target: Dictionary = affixes[target_index] as Dictionary
+	var new_tier: int = mini(5, int(target.get("tier", 5)) + 1)
+	var stat: String = String(target.get("stat", "damage"))
+	affixes[target_index] = _make_affix_record(stat, new_tier, _roll_affix_value(stat, new_tier))
+	item["affixes"] = affixes
+	_rebuild_item_stats(item)
+	return true
+
+func _add_random_affix(item: Dictionary) -> bool:
+	var rarity: String = String(item.get("rarity", "Common"))
+	if _item_affix_count(item) >= _rarity_affix_cap(rarity):
+		return false
+	var used_stats: Array[String] = []
+	var affixes_variant: Variant = item.get("affixes", [])
+	var affixes: Array = []
+	if typeof(affixes_variant) == TYPE_ARRAY:
+		affixes = (affixes_variant as Array).duplicate(true)
+		for affix_variant: Variant in affixes:
+			if typeof(affix_variant) == TYPE_DICTIONARY:
+				used_stats.append(String((affix_variant as Dictionary).get("stat", "")))
+	var available: Array[String] = []
+	for candidate: String in _affix_candidates(String(item.get("slot", "charm"))):
+		if not used_stats.has(candidate):
+			available.append(candidate)
+	if available.is_empty():
+		return false
+	var stat: String = available[rng.randi_range(0, available.size() - 1)]
+	var tier: int = _roll_affix_tier(maxi(1, int(item.get("depth", 1))))
+	affixes.append(_make_affix_record(stat, tier, _roll_affix_value(stat, tier)))
+	item["affixes"] = affixes
+	_rebuild_item_stats(item)
+	return true
+
 func _craft_scrap() -> void:
 	if int(stash_crafting.get("scrap", 0)) <= 0:
 		return
@@ -2847,10 +2930,13 @@ func _craft_scrap() -> void:
 		rerolled.append(_make_affix_record(stat, tier, value))
 	item["affixes"] = rerolled
 	_rebuild_item_stats(item)
+	var scrap_outcome: String = "SCRAP SLAMMED — values rerolled."
+	if rng.randf() < 0.20 and _improve_random_affix_tier(item):
+		scrap_outcome = "GREAT SLAM — one modifier jumped a tier."
 	_finalize_crafted_item(item)
 	_store_crafting_target_item(item)
 	_spend_crafting_currency("scrap")
-	crafting_feedback_label.text = "SCRAP SLAMMED — values rerolled."
+	crafting_feedback_label.text = scrap_outcome
 	_after_craft()
 
 func _craft_mutation() -> void:
@@ -2872,11 +2958,18 @@ func _craft_mutation() -> void:
 	var tier: int = _roll_affix_tier(maxi(1, int(item.get("depth", 1))))
 	var value: float = _roll_affix_value(stat, tier)
 	item["affixes"] = [_make_affix_record(stat, tier, value)]
+	var mutation_outcome: String = "MUTATED — the item is now Magic."
+	if claim_tier >= 2 and rng.randf() < 0.16:
+		item["rarity"] = "Rare"
+		_add_random_affix(item)
+		mutation_outcome = "JACKPOT MUTATION — it jumped straight to Rare."
+	elif rng.randf() < 0.22 and _improve_random_affix_tier(item):
+		mutation_outcome = "HOT MUTATION — the new modifier rolled a stronger tier."
 	_rebuild_item_stats(item)
 	_finalize_crafted_item(item)
 	_store_crafting_target_item(item)
 	_spend_crafting_currency("mutation")
-	crafting_feedback_label.text = "MUTATED — the item is now Magic."
+	crafting_feedback_label.text = mutation_outcome
 	_after_craft()
 
 func _craft_chaos() -> void:
@@ -2906,10 +2999,16 @@ func _craft_chaos() -> void:
 		used_stats.append(stat)
 	item["affixes"] = new_affixes
 	_rebuild_item_stats(item)
+	var chaos_roll: float = rng.randf()
+	var chaos_outcome: String = "CHAOS SLAMMED — everything normal got rerolled."
+	if chaos_roll < 0.18 and _improve_random_affix_tier(item):
+		chaos_outcome = "CHAOS HIGH-ROLL — one modifier jumped a tier."
+	elif chaos_roll > 0.90 and _worsen_random_affix_tier(item):
+		chaos_outcome = "CHAOS BRICK — one modifier dropped a tier."
 	_finalize_crafted_item(item)
 	_store_crafting_target_item(item)
 	_spend_crafting_currency("chaos")
-	crafting_feedback_label.text = "CHAOS SLAMMED — normal modifiers rerolled."
+	crafting_feedback_label.text = chaos_outcome
 	_after_craft()
 
 func _craft_mechanist() -> void:
@@ -2935,11 +3034,22 @@ func _craft_mechanist() -> void:
 	if replacement.is_empty():
 		return
 	mechanics[target_index] = replacement
+	var mechanist_outcome: String = "MECHANIST SLAMMED — one Augment rerolled."
+	var rarity: String = String(item.get("rarity", "Common"))
+	if claim_tier >= 3 and (rarity == "Rare" or rarity == "Gilded") and mechanics.size() < 2 and rng.randf() < 0.18:
+		var used_after: Array[String] = []
+		for mechanic_variant: Variant in mechanics:
+			if typeof(mechanic_variant) == TYPE_DICTIONARY:
+				used_after.append(String((mechanic_variant as Dictionary).get("id", "")))
+		var bonus_mechanic: Dictionary = _roll_mechanic(String(item.get("slot", "charm")), used_after, true, String(item.get("weapon_archetype", "")))
+		if not bonus_mechanic.is_empty():
+			mechanics.append(bonus_mechanic)
+			mechanist_outcome = "MECHANIST JACKPOT — a second Augment was forged onto the item."
 	item["mechanics"] = mechanics
 	_finalize_crafted_item(item)
 	_store_crafting_target_item(item)
 	_spend_crafting_currency("mechanist")
-	crafting_feedback_label.text = "MECHANIST SLAMMED — one Augment rerolled."
+	crafting_feedback_label.text = mechanist_outcome
 	_after_craft()
 
 func _after_craft() -> void:
