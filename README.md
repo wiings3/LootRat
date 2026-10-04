@@ -4,6 +4,23 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.53 — Melee Rebalance & High-Impact Crafting
+- Blade now has an innate close-combat defensive profile:
+  - 18% less damage taken while a Blade is equipped.
+  - 10% shorter dash cooldown while a Blade is equipped.
+- Blade Core combat was rebalanced upward:
+  - Cleaver: substantially higher hit damage, larger arc, more reach, more knockback, slightly faster cadence.
+  - Duelist: higher damage, faster cadence, longer stab reach, more knockback.
+  - Whirlwind: higher damage, faster cadence, larger radius, more knockback.
+  - Recall remains the safer ranged Blade option and was not given the same melee damage spike.
+- Blade inspector DPS/reach math and attack visuals were updated to match runtime behavior.
+- Crafting currencies now have memorable high-roll / low-roll outcomes while respecting Claim Tier progression:
+  - **Scrap Orb:** rerolls values, with a 20% chance to improve one affix by a tier when allowed.
+  - **Mutation Shard:** Common → Magic normally; at Claim T2+ it has a 16% chance to jump straight to Rare. It can also high-roll a stronger affix tier.
+  - **Chaos Token:** full normal-affix reroll, with an 18% chance to improve one affix tier and a 10% brick chance to worsen one.
+  - **Mechanist's Seal:** rerolls one Augment; at Claim T3+ a Rare item with one Augment has an 18% chance to gain a second compatible Augment.
+- Crafting jackpot outcomes never unlock affix/mechanic tiers that the current Claim Tier cannot legally produce.
+
 ## v0.521 — Workbench Item Access
 - The Workbench is now self-contained: it can browse both **equipped gear** and the **stash** without returning to the Stash station first.
 - Equipped Weapon / Armor / Charm appear as selectable crafting sources.
