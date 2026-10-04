@@ -28,7 +28,7 @@ func _physics_process(delta: float) -> void:
 	_age += delta
 	velocity = velocity.move_toward(Vector2.ZERO, 420.0 * delta)
 	global_position += velocity * delta
-	if loot_type == "seal":
+	if loot_type == "seal" or loot_type == "craft":
 		rotation += delta * 1.8
 	elif loot_type == "gear" or loot_type == "jackpot":
 		var pulse: float = 1.0 + sin(_age * 5.0) * 0.045
@@ -57,6 +57,21 @@ func _build_ground_label() -> void:
 			label.text = "JACKPOT  ₵%d" % amount
 			label.add_theme_font_size_override("font_size", 18)
 			label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.18))
+		"craft":
+			var currency_key: String = String(gear.get("currency", "scrap"))
+			match currency_key:
+				"mutation":
+					label.text = "MUTATION SHARD"
+					label.add_theme_color_override("font_color", Color(0.46, 0.90, 0.58))
+				"chaos":
+					label.text = "CHAOS TOKEN"
+					label.add_theme_color_override("font_color", Color(0.82, 0.42, 1.0))
+				"mechanist":
+					label.text = "MECHANIST'S SEAL"
+					label.add_theme_color_override("font_color", Color(1.0, 0.60, 0.20))
+				_:
+					label.text = "SCRAP ORB"
+					label.add_theme_color_override("font_color", Color(0.80, 0.84, 0.90))
 		"gear":
 			label.text = "%s  ~₵%d" % [String(gear.get("name", "Gear")), int(gear.get("value", 0))]
 			var rarity: String = String(gear.get("rarity", "Common"))
@@ -92,6 +107,18 @@ func _draw() -> void:
 			draw_circle(Vector2.ZERO, 4.0, Color(1.0, 0.95, 0.48))
 		"seal":
 			draw_colored_polygon(PackedVector2Array([Vector2(0,-10), Vector2(9,0), Vector2(0,10), Vector2(-9,0)]), Color(0.25, 0.85, 1.0))
+		"craft":
+			var currency_key: String = String(gear.get("currency", "scrap"))
+			var craft_color := Color(0.80, 0.84, 0.90)
+			if currency_key == "mutation":
+				craft_color = Color(0.38, 0.92, 0.55)
+			elif currency_key == "chaos":
+				craft_color = Color(0.78, 0.34, 1.0)
+			elif currency_key == "mechanist":
+				craft_color = Color(1.0, 0.52, 0.12)
+			draw_circle(Vector2.ZERO, 12.0, Color(craft_color.r, craft_color.g, craft_color.b, 0.18))
+			draw_colored_polygon(PackedVector2Array([Vector2(0,-10), Vector2(8,-5), Vector2(9,5), Vector2(0,10), Vector2(-9,5), Vector2(-8,-5)]), craft_color)
+			draw_circle(Vector2.ZERO, 3.0, Color(0.10, 0.11, 0.14))
 		"gear":
 			var rarity: String = String(gear.get("rarity", "Common"))
 			var gear_color := Color(0.82, 0.84, 0.88)

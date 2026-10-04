@@ -4,6 +4,18 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.4 — Crafting Bench
+- Added a hub **Crafting Bench** accessible from any selected stash item.
+- Crafting materials are real unsecured Claim drops and are only banked on successful extraction.
+- **Scrap Orb (T1+)** — rerolls the numerical values of existing normal affixes while preserving their stats and tiers.
+- **Mutation Shard (T1+)** — slams a clean Common base into a Magic item with one tier-eligible mechanic and one normal affix.
+- **Chaos Token (T2+)** — rerolls all normal affix stats/tiers while preserving the base item and its mechanical affix.
+- **Mechanist's Seal (T3+)** — rerolls one mechanical affix within the player's currently unlocked Claim Tier.
+- Crafting cannot roll mechanics or affix tiers beyond the player's current Claim Tier.
+- Existing saves gain an empty crafting-material stash automatically.
+- Crafting materials have modest net-worth values, but there is currently no vendor conversion; their main value is item development.
+- The intended loop is now **find a promising base → invest scarce currency → decide whether to keep slamming or stop**.
+
 ## v0.32 — Mechanical Affixes
 Items now change gameplay, not just numbers. Mechanical affixes are **hard-gated by Claim Tier**, so distinct upgrades do not bypass the slow progression curve.
 
