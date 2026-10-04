@@ -70,6 +70,7 @@ var stash_crafting: Dictionary = {"scrap": 0, "mutation": 0, "chaos": 0, "mechan
 var stash_cores: Dictionary = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1, "cleaver": 1, "duelist": 1, "whirlwind": 1, "throwing": 1}
 var equipped: Dictionary = {"weapon": {}, "armor": {}, "charm": {}}
 var next_item_id: int = 1
+var blade_intro_granted: bool = false
 
 var run_coins: int = 0
 var run_seals: int = 0
@@ -2852,6 +2853,34 @@ func _ensure_starter_gear() -> void:
 		equipped["armor"] = _make_starter_item("armor")
 	if (equipped.get("charm", {}) as Dictionary).is_empty():
 		equipped["charm"] = _make_starter_item("charm")
+	if not blade_intro_granted:
+		stash_gear.append(_make_intro_blade())
+		blade_intro_granted = true
+
+func _make_intro_blade() -> Dictionary:
+	var item: Dictionary = {
+		"id": next_item_id,
+		"slot": "weapon",
+		"rarity": "Common",
+		"name": "Rusty Scrap Blade",
+		"base_name": "Scrap Blade",
+		"weapon_archetype": "blade",
+		"core_id": "cleaver",
+		"depth": 0,
+		"item_level": 1,
+		"damage": 3.0,
+		"attack_speed": 0.0,
+		"max_hp": 0.0,
+		"move_speed": 0.0,
+		"currency_find": 0.0,
+		"item_find": 0.0,
+		"implicit": {"stat":"damage", "value":3.0, "label":"Damage"},
+		"affixes": [],
+		"mechanics": []
+	}
+	next_item_id += 1
+	item["value"] = _item_value(item)
+	return item
 
 func _save_game() -> void:
 	var data: Dictionary = {
@@ -2862,6 +2891,7 @@ func _save_game() -> void:
 		"cores": stash_cores,
 		"equipped": equipped,
 		"next_item_id": next_item_id,
+		"blade_intro_granted": blade_intro_granted,
 		"claim_tier": claim_tier,
 		"tier_best_depths": tier_best_depths
 	}
@@ -2903,6 +2933,7 @@ func _load_save() -> void:
 		for currency_key: String in crafting_keys:
 			stash_crafting[currency_key] = maxi(0, int(loaded_crafting.get(currency_key, 0)))
 	next_item_id = int(data.get("next_item_id", 1))
+	blade_intro_granted = bool(data.get("blade_intro_granted", false))
 	claim_tier = clampi(int(data.get("claim_tier", 1)), 1, 5)
 	var depths_variant: Variant = data.get("tier_best_depths", {})
 	if typeof(depths_variant) == TYPE_DICTIONARY:
@@ -2935,6 +2966,7 @@ func _wipe_save() -> void:
 	stash_cores = {"repeater": 0, "scatter": 1, "piercer": 1, "sprayer": 1, "cleaver": 1, "duelist": 1, "whirlwind": 1, "throwing": 1}
 	equipped = {"weapon": {}, "armor": {}, "charm": {}}
 	next_item_id = 1
+	blade_intro_granted = false
 	selected_stash_item_id = -1
 	stash_filter = "all"
 	stash_sort_mode = "value"
