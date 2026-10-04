@@ -29,8 +29,9 @@ var crafting_panel: PanelContainer = null
 var decision_panel: PanelContainer = null
 var decision_title: Label = null
 var decision_body: Label = null
-var inventory_list: VBoxContainer = null
+var inventory_list: GridContainer = null
 var equipped_label: RichTextLabel = null
+var equipped_slot_buttons: Dictionary = {}
 var claim_label: RichTextLabel = null
 var stats_label: RichTextLabel = null
 var stash_count_label: Label = null
@@ -303,57 +304,68 @@ func _build_hub_panel() -> void:
 
 func _build_character_panel() -> void:
 	character_panel = PanelContainer.new()
-	character_panel.position = Vector2(155.0, 92.0)
-	character_panel.size = Vector2(330.0, 560.0)
-	character_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
+	character_panel.position = Vector2(120.0, 92.0)
+	character_panel.size = Vector2(300.0, 560.0)
+	character_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.020, 0.022, 0.028, 0.99), Color(0.30, 0.25, 0.18), 2))
 	hud.add_child(character_panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 8)
+	root.add_theme_constant_override("separation", 10)
 	character_panel.add_child(root)
 
-	root.add_child(_section_title("LOADOUT"))
-	root.add_child(_muted_label("Equipped gear drives combat power and loot efficiency."))
+	var title := _section_title("EQUIPMENT")
+	title.add_theme_font_size_override("font_size", 21)
+	root.add_child(title)
 
-	equipped_label = RichTextLabel.new()
-	equipped_label.bbcode_enabled = true
-	equipped_label.fit_content = false
-	equipped_label.custom_minimum_size = Vector2(310.0, 190.0)
-	equipped_label.add_theme_font_size_override("normal_font_size", 14)
-	root.add_child(equipped_label)
+	var slot_grid := GridContainer.new()
+	slot_grid.columns = 1
+	slot_grid.add_theme_constant_override("v_separation", 8)
+	root.add_child(slot_grid)
+
+	var slot_specs: Array[Dictionary] = [
+		{"key":"weapon", "label":"WEAPON", "glyph":"⚔"},
+		{"key":"armor", "label":"ARMOR", "glyph":"▣"},
+		{"key":"charm", "label":"CHARM", "glyph":"◆"}
+	]
+	for spec: Dictionary in slot_specs:
+		var slot_key: String = String(spec["key"])
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(265.0, 72.0)
+		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		button.add_theme_font_size_override("font_size", 14)
+		button.pressed.connect(_select_equipped_slot.bind(slot_key))
+		equipped_slot_buttons[slot_key] = button
+		slot_grid.add_child(button)
 
 	var divider := HSeparator.new()
 	root.add_child(divider)
 
-	var stat_header := Label.new()
-	stat_header.text = "BUILD STATS"
-	stat_header.add_theme_font_size_override("font_size", 18)
-	stat_header.add_theme_color_override("font_color", Color(0.78, 0.82, 0.90))
-	root.add_child(stat_header)
-
 	stats_label = RichTextLabel.new()
 	stats_label.bbcode_enabled = true
 	stats_label.fit_content = false
-	stats_label.custom_minimum_size = Vector2(310.0, 255.0)
-	stats_label.add_theme_font_size_override("normal_font_size", 15)
+	stats_label.custom_minimum_size = Vector2(265.0, 210.0)
+	stats_label.add_theme_font_size_override("normal_font_size", 14)
 	root.add_child(stats_label)
+
+	equipped_label = RichTextLabel.new()
+	equipped_label.visible = false
+	root.add_child(equipped_label)
 
 func _build_gear_panel() -> void:
 	gear_panel = PanelContainer.new()
-	gear_panel.position = Vector2(495.0, 92.0)
-	gear_panel.size = Vector2(630.0, 560.0)
-	gear_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
+	gear_panel.position = Vector2(430.0, 92.0)
+	gear_panel.size = Vector2(730.0, 560.0)
+	gear_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.020, 0.022, 0.028, 0.99), Color(0.30, 0.25, 0.18), 2))
 	hud.add_child(gear_panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 7)
+	root.add_theme_constant_override("separation", 8)
 	gear_panel.add_child(root)
 
 	var header_row := HBoxContainer.new()
-	header_row.add_theme_constant_override("separation", 10)
 	root.add_child(header_row)
-
 	var title := _section_title("STASH")
+	title.add_theme_font_size_override("font_size", 21)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
 
@@ -374,75 +386,78 @@ func _build_gear_panel() -> void:
 	]
 	for spec: Dictionary in filter_specs:
 		var key: String = String(spec["key"])
-		var filter_button := _make_button(String(spec["label"]), _set_stash_filter.bind(key), Vector2(78.0, 32.0))
-		filter_button.add_theme_font_size_override("font_size", 12)
+		var filter_button := _make_button(String(spec["label"]), _set_stash_filter.bind(key), Vector2(82.0, 30.0))
+		filter_button.add_theme_font_size_override("font_size", 11)
 		filter_buttons[key] = filter_button
 		filter_row.add_child(filter_button)
 
-	sort_button = _make_button("SORT: VALUE", _cycle_stash_sort, Vector2(135.0, 32.0))
-	sort_button.add_theme_font_size_override("font_size", 12)
+	sort_button = _make_button("VALUE", _cycle_stash_sort, Vector2(90.0, 30.0))
+	sort_button.add_theme_font_size_override("font_size", 11)
 	filter_row.add_child(sort_button)
 
 	var content_row := HBoxContainer.new()
 	content_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_row.add_theme_constant_override("separation", 10)
+	content_row.add_theme_constant_override("separation", 12)
 	root.add_child(content_row)
 
-	var list_panel := PanelContainer.new()
-	list_panel.custom_minimum_size = Vector2(340.0, 420.0)
-	list_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	list_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.020, 0.024, 0.034), Color(0.10, 0.12, 0.16), 1))
-	content_row.add_child(list_panel)
+	var grid_panel := PanelContainer.new()
+	grid_panel.custom_minimum_size = Vector2(438.0, 445.0)
+	grid_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.010, 0.012, 0.016), Color(0.22, 0.18, 0.12), 2))
+	content_row.add_child(grid_panel)
 
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	list_panel.add_child(scroll)
+	grid_panel.add_child(scroll)
 
-	inventory_list = VBoxContainer.new()
+	inventory_list = GridContainer.new()
+	inventory_list.columns = 6
 	inventory_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inventory_list.add_theme_constant_override("separation", 5)
+	inventory_list.add_theme_constant_override("h_separation", 3)
+	inventory_list.add_theme_constant_override("v_separation", 3)
 	scroll.add_child(inventory_list)
 
 	var inspector_panel := PanelContainer.new()
-	inspector_panel.custom_minimum_size = Vector2(250.0, 420.0)
-	inspector_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	inspector_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.022, 0.027, 0.038), Color(0.12, 0.15, 0.20), 1))
+	inspector_panel.custom_minimum_size = Vector2(245.0, 445.0)
+	inspector_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.014, 0.016, 0.021), Color(0.22, 0.18, 0.12), 2))
 	content_row.add_child(inspector_panel)
 
 	var inspector_root := VBoxContainer.new()
-	inspector_root.add_theme_constant_override("separation", 8)
+	inspector_root.add_theme_constant_override("separation", 7)
 	inspector_panel.add_child(inspector_root)
 
 	var inspect_header := Label.new()
-	inspect_header.text = "ITEM INSPECTOR"
-	inspect_header.add_theme_font_size_override("font_size", 16)
-	inspect_header.add_theme_color_override("font_color", Color(0.78, 0.82, 0.90))
+	inspect_header.text = "ITEM"
+	inspect_header.add_theme_font_size_override("font_size", 14)
+	inspect_header.add_theme_color_override("font_color", Color(0.64, 0.61, 0.54))
 	inspector_root.add_child(inspect_header)
 
 	selected_item_label = RichTextLabel.new()
 	selected_item_label.bbcode_enabled = true
 	selected_item_label.fit_content = false
 	selected_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	selected_item_label.custom_minimum_size = Vector2(220.0, 260.0)
-	selected_item_label.add_theme_font_size_override("normal_font_size", 14)
+	selected_item_label.custom_minimum_size = Vector2(215.0, 315.0)
+	selected_item_label.add_theme_font_size_override("normal_font_size", 13)
 	inspector_root.add_child(selected_item_label)
 
-	selected_equip_button = _make_button("EQUIP SELECTED", _equip_selected_item, Vector2(202.0, 38.0))
+	selected_equip_button = _make_button("EQUIP", _equip_selected_item, Vector2(215.0, 34.0))
+	selected_equip_button.add_theme_font_size_override("font_size", 12)
 	inspector_root.add_child(selected_equip_button)
 
-	selected_sell_button = _make_button("SELL SELECTED", _sell_selected_item, Vector2(202.0, 38.0))
+	selected_sell_button = _make_button("SELL", _sell_selected_item, Vector2(215.0, 34.0))
+	selected_sell_button.add_theme_font_size_override("font_size", 12)
 	inspector_root.add_child(selected_sell_button)
 
-
-	var footer_row := HBoxContainer.new()
-	footer_row.add_theme_constant_override("separation", 8)
-	root.add_child(footer_row)
-	footer_row.add_child(_make_button("SELL FILTERED", _sell_filtered_gear, Vector2(150.0, 34.0)))
-	var wipe_button := _make_button("WIPE SAVE", _wipe_save, Vector2(105.0, 34.0))
-	wipe_button.add_theme_font_size_override("font_size", 11)
-	footer_row.add_child(wipe_button)
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 8)
+	root.add_child(footer)
+	var sell_filtered := _make_button("SELL FILTERED", _sell_filtered_gear, Vector2(132.0, 30.0))
+	sell_filtered.add_theme_font_size_override("font_size", 11)
+	footer.add_child(sell_filtered)
+	var wipe_button := _make_button("WIPE SAVE", _wipe_save, Vector2(92.0, 30.0))
+	wipe_button.add_theme_font_size_override("font_size", 10)
+	footer.add_child(wipe_button)
 
 func _build_crafting_panel() -> void:
 	crafting_panel = PanelContainer.new()
@@ -1703,9 +1718,9 @@ func _update_hub_ui() -> void:
 	claim_label.text = "[color=#8d96a6]NEXT CLAIM[/color]  [b]TIER %d[/b]\n[b][font_size=20]ABANDONED CLAIM[/font_size][/b]\n[color=#8d96a6]Loot ceiling[/color] [b]%s[/b]   [color=#8d96a6]Affix ceiling[/color] [b]T%d[/b]\n[color=#8d96a6]Best extract[/color] D%d   [color=#8d96a6]%s[/color]\n[color=#8d96a6]Seals[/color] %d   [color=#8d96a6]Invested[/color] %d   [color=%s][b]%s[/b][/color]\n\nDensity [b]+%d%%[/b]  •  Items [b]+%d%%[/b]\nCurrency [b]+%d%%[/b]  •  Elite [b]+%.1f%%[/b]" % [claim_tier, _tier_loot_ceiling(claim_tier), affix_ceiling, best_depth, next_gate, stash_seals, invested, risk_color, risk, juice_density * 20, juice_quantity * 25, juice_currency * 25, float(juice_elite) * 3.5]
 
 	var stats: Dictionary = _calculate_player_stats()
-	stats_label.text = "[color=#8d96a6][b]OFFENSE[/b][/color]\nWeapon Base   [b]%s[/b]\nDamage        [b]%.1f[/b]\nAttack Rate   [b]%.2f / sec[/b]\n\n[color=#8d96a6][b]SURVIVAL[/b][/color]\nMax HP        [b]%.0f[/b]\nMove Speed    [b]%.0f[/b]\n\n[color=#8d96a6][b]LOOT[/b][/color]\nCurrency Find [color=#f6d05f][b]%.1f%%[/b][/color]\nItem Find     [color=#8dd7ff][b]%.1f%%[/b][/color]" % [String(stats["weapon_type"]).capitalize(), float(stats["damage"]), float(stats["attack_speed"]), float(stats["max_hp"]), float(stats["move_speed"]), float(stats["currency_find"]), float(stats["item_find"])]
+	stats_label.text = "[color=#8d96a6]BUILD[/color]\n[b]%.1f[/b] DMG     [b]%.2f[/b] ATK/s\n[b]%.0f[/b] HP      [b]%.0f[/b] MOVE\n\n[color=#8d96a6]FIND[/color]\n[color=#f6d05f][b]%.1f%%[/b] Currency[/color]\n[color=#8dd7ff][b]%.1f%%[/b] Items[/color]" % [float(stats["damage"]), float(stats["attack_speed"]), float(stats["max_hp"]), float(stats["move_speed"]), float(stats["currency_find"]), float(stats["item_find"])]
 
-	equipped_label.text = "[color=#8d96a6]WEAPON[/color]\n%s\n\n[color=#8d96a6]ARMOR[/color]\n%s\n\n[color=#8d96a6]CHARM[/color]\n%s" % [_item_to_bbcode(equipped.get("weapon", {}) as Dictionary, true), _item_to_bbcode(equipped.get("armor", {}) as Dictionary, true), _item_to_bbcode(equipped.get("charm", {}) as Dictionary, true)]
+	_update_equipped_slot_buttons()
 
 	_rebuild_inventory()
 	_refresh_selected_item()
@@ -1714,6 +1729,30 @@ func _update_hub_ui() -> void:
 	if crafting_panel != null and crafting_panel.visible:
 		_refresh_crafting_panel()
 	_update_top_bar()
+
+func _update_equipped_slot_buttons() -> void:
+	var slot_names: Array[String] = ["weapon", "armor", "charm"]
+	for slot_name: String in slot_names:
+		var button_variant: Variant = equipped_slot_buttons.get(slot_name)
+		if not button_variant is Button:
+			continue
+		var button := button_variant as Button
+		var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
+		if item.is_empty():
+			button.text = "%s\nEMPTY" % slot_name.to_upper()
+			button.add_theme_color_override("font_color", Color(0.42,0.44,0.48))
+			continue
+		var rarity: String = String(item.get("rarity", "Common"))
+		button.text = "%s     %s\n%s" % [_grid_item_glyph(slot_name), slot_name.to_upper(), String(item.get("name", "Item"))]
+		button.add_theme_color_override("font_color", _rarity_color(rarity))
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.028,0.030,0.036)
+		style.border_color = _rarity_color(rarity)
+		style.border_width_left = 2
+		style.border_width_top = 2
+		style.border_width_right = 2
+		style.border_width_bottom = 2
+		button.add_theme_stylebox_override("normal", style)
 
 func _rebuild_inventory() -> void:
 	for child: Node in inventory_list.get_children():
@@ -1738,31 +1777,64 @@ func _rebuild_inventory() -> void:
 		"newest":
 			filtered_items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("id", 0)) > int(b.get("id", 0)))
 
-	stash_count_label.text = "%d shown  •  %d total" % [filtered_items.size(), stash_gear.size()]
-
-	if filtered_items.is_empty():
-		var empty_label := Label.new()
-		empty_label.text = "No items in this category."
-		empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		empty_label.add_theme_color_override("font_color", Color(0.48, 0.52, 0.60))
-		inventory_list.add_child(empty_label)
-		return
+	stash_count_label.text = "%d / 36" % filtered_items.size()
 
 	for item: Dictionary in filtered_items:
 		var item_id: int = int(item.get("id", -1))
 		var rarity: String = String(item.get("rarity", "Common"))
-		var slot: String = String(item.get("slot", "gear")).to_upper()
-		var name_value: String = String(item.get("name", "Item"))
-		var prefix: String = "▶ " if item_id == selected_stash_item_id else ""
+		var slot: String = String(item.get("slot", "gear"))
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(276.0, 62.0)
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.text = "%s%s  •  %s\n   ~₵%d   %s" % [prefix, slot, rarity, int(item.get("value", 0)), name_value]
-		button.add_theme_font_size_override("font_size", 13)
+		button.custom_minimum_size = Vector2(66.0, 66.0)
+		button.text = _grid_item_glyph(slot) + "\n" + _grid_item_short_name(item)
+		button.add_theme_font_size_override("font_size", 10)
+		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.tooltip_text = "%s\n%s • ilvl %d\n~₵%d" % [String(item.get("name", "Item")), rarity, int(item.get("item_level", 1)), int(item.get("value", 0))]
+		var normal_style := StyleBoxFlat.new()
+		normal_style.bg_color = Color(0.035, 0.038, 0.045)
+		normal_style.border_color = _rarity_color(rarity)
+		normal_style.border_width_left = 2
+		normal_style.border_width_top = 2
+		normal_style.border_width_right = 2
+		normal_style.border_width_bottom = 2
+		if item_id == selected_stash_item_id:
+			normal_style.border_width_left = 4
+			normal_style.border_width_top = 4
+			normal_style.border_width_right = 4
+			normal_style.border_width_bottom = 4
+		button.add_theme_stylebox_override("normal", normal_style)
 		button.add_theme_color_override("font_color", _rarity_color(rarity))
-		button.add_theme_color_override("font_hover_color", Color.WHITE)
 		button.pressed.connect(_select_stash_item.bind(item_id))
 		inventory_list.add_child(button)
+
+	var visible_cells: int = mini(36, filtered_items.size())
+	for _cell in range(visible_cells, 36):
+		var empty := Panel.new()
+		empty.custom_minimum_size = Vector2(66.0, 66.0)
+		empty.add_theme_stylebox_override("panel", _empty_grid_cell_style())
+		inventory_list.add_child(empty)
+
+func _grid_item_glyph(slot: String) -> String:
+	match slot:
+		"weapon": return "⚔"
+		"armor": return "▣"
+		"charm": return "◆"
+		_: return "•"
+
+func _grid_item_short_name(item: Dictionary) -> String:
+	var base_name: String = String(item.get("base_name", item.get("name", "Item")))
+	if base_name.length() <= 9:
+		return base_name
+	return base_name.left(8) + "…"
+
+func _empty_grid_cell_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.018, 0.020, 0.025)
+	style.border_color = Color(0.10, 0.095, 0.080)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	return style
 
 func _rarity_rank(rarity: String) -> int:
 	match rarity:
@@ -1799,9 +1871,18 @@ func _update_stash_controls() -> void:
 			(button_variant as Button).disabled = key == stash_filter
 	if sort_button != null:
 		match stash_sort_mode:
-			"rarity": sort_button.text = "SORT: RARITY"
-			"newest": sort_button.text = "SORT: NEWEST"
-			_: sort_button.text = "SORT: VALUE"
+			"rarity": sort_button.text = "RARITY"
+			"newest": sort_button.text = "NEWEST"
+			_: sort_button.text = "VALUE"
+
+func _select_equipped_slot(slot_name: String) -> void:
+	var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
+	if item.is_empty():
+		return
+	selected_stash_item_id = -1
+	selected_item_label.text = "[color=#8d96a6]%s[/color]\n%s" % [slot_name.to_upper(), _item_to_bbcode(item)]
+	selected_equip_button.disabled = true
+	selected_sell_button.disabled = true
 
 func _select_stash_item(item_id: int) -> void:
 	selected_stash_item_id = item_id
@@ -1814,22 +1895,17 @@ func _refresh_selected_item() -> void:
 	var index: int = _find_stash_item_index(selected_stash_item_id)
 	if index < 0:
 		selected_stash_item_id = -1
-		selected_item_label.text = "[color=#737c8d]Select an item from the stash to inspect it and compare it against your equipped gear.[/color]"
+		selected_item_label.text = "[color=#656b75]Select an item in the grid.[/color]"
 		selected_equip_button.disabled = true
 		selected_sell_button.disabled = true
-		if selected_craft_button != null:
-			selected_craft_button.disabled = true
 		return
 
 	var item: Dictionary = stash_gear[index]
 	var slot: String = String(item.get("slot", "charm"))
 	var current: Dictionary = equipped.get(slot, {}) as Dictionary
-	var current_name: String = String(current.get("name", "Empty"))
-	selected_item_label.text = "[color=#8d96a6]SELECTED[/color]\n%s\n\n[color=#8d96a6]CURRENT %s[/color]\n%s\n\n[color=#8d96a6]STAT CHANGE[/color]\n%s" % [_item_to_bbcode(item), slot.to_upper(), current_name, _comparison_bbcode(item, current)]
+	selected_item_label.text = "%s\n\n[color=#777f8d]VS EQUIPPED[/color]\n%s" % [_item_to_bbcode(item), _comparison_bbcode(item, current)]
 	selected_equip_button.disabled = false
 	selected_sell_button.disabled = false
-	if selected_craft_button != null:
-		selected_craft_button.disabled = false
 	if crafting_panel != null and crafting_panel.visible:
 		_refresh_crafting_panel()
 
