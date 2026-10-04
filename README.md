@@ -4,6 +4,18 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.52 — ARPG Interface Overhaul
+- Rebuilt the Stash and Workbench layout using Path of Exile 1/2 as heavy structural inspiration without directly copying their art.
+- Replaced rounded app-like cards with square dark frames, restrained aged-brass borders, compact tabs, and ARPG-style item sockets.
+- Equipment now lives in a dedicated **Character** column with three large framed gear slots and a compact build summary.
+- Stash now uses a wider **8×5 visual item grid** with 40 visible slots, smaller cell text, rarity borders, and a separate tooltip-style inspector pane.
+- Stash filters now read as compact tabs instead of large generic buttons; active tabs receive a warm metal highlight.
+- Item details remain contextual: selecting an item drives the inspector and comparison pane rather than filling the screen with permanent stats.
+- Workbench is now a two-part composition: **Target Item** on the left and **Core Socket / Apply Currency** on the right.
+- Compatible Cores only are shown for the selected archetype, with the currently slotted Core visually identified.
+- Crafting currency actions display their current stack counts directly on each action instead of duplicating Core inventories in a dashboard strip.
+- The overall hierarchy is now: equipment → grid → tooltip for stash, and item → socket/currency action for crafting.
+
 ## v0.51 — Blade Archetype
 - Added **Blade** as the second full weapon archetype.
 - Blade chassis now drop alongside Gun chassis:
