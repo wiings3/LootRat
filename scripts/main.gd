@@ -262,43 +262,55 @@ func _muted_label(text_value: String) -> Label:
 
 func _build_hub_panel() -> void:
 	hub_panel = PanelContainer.new()
-	hub_panel.position = Vector2(420.0, 98.0)
-	hub_panel.size = Vector2(440.0, 550.0)
-	hub_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
+	hub_panel.position = Vector2(365.0, 105.0)
+	hub_panel.size = Vector2(550.0, 535.0)
+	hub_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.020, 0.022, 0.028, 0.99), Color(0.36, 0.22, 0.34), 2))
 	hud.add_child(hub_panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 7)
+	root.add_theme_constant_override("separation", 11)
 	hub_panel.add_child(root)
 
-	root.add_child(_section_title("CLAIM PREP"))
-	root.add_child(_muted_label("Invest Seals now. The payout stays unsecured until you extract."))
+	var title := _section_title("CLAIM TABLE")
+	title.add_theme_font_size_override("font_size", 22)
+	root.add_child(title)
 
 	claim_label = RichTextLabel.new()
 	claim_label.bbcode_enabled = true
 	claim_label.fit_content = false
-	claim_label.custom_minimum_size = Vector2(410.0, 150.0)
-	claim_label.add_theme_font_size_override("normal_font_size", 15)
+	claim_label.custom_minimum_size = Vector2(515.0, 122.0)
+	claim_label.add_theme_font_size_override("normal_font_size", 14)
 	root.add_child(claim_label)
 
-	var juice_title := _muted_label("MODIFIERS  •  each click costs 1 Seal")
-	juice_title.add_theme_color_override("font_color", Color(0.68, 0.72, 0.80))
-	root.add_child(juice_title)
+	var modifier_title := Label.new()
+	modifier_title.text = "SEAL MODIFIERS"
+	modifier_title.add_theme_font_size_override("font_size", 13)
+	modifier_title.add_theme_color_override("font_color", Color(0.64,0.61,0.68))
+	root.add_child(modifier_title)
 
-	root.add_child(_make_button("DENSITY  +20%", _juice_density, Vector2(410.0, 31.0)))
-	root.add_child(_make_button("ITEM QUANTITY  +25%", _juice_quantity, Vector2(410.0, 31.0)))
-	root.add_child(_make_button("CURRENCY  +25%", _juice_currency, Vector2(410.0, 31.0)))
-	root.add_child(_make_button("ELITE CHANCE  +3.5%", _juice_elite, Vector2(410.0, 31.0)))
+	var modifier_grid := GridContainer.new()
+	modifier_grid.columns = 2
+	modifier_grid.add_theme_constant_override("h_separation", 8)
+	modifier_grid.add_theme_constant_override("v_separation", 8)
+	root.add_child(modifier_grid)
+	modifier_grid.add_child(_make_button("DENSITY\n+20%", _juice_density, Vector2(250.0, 58.0)))
+	modifier_grid.add_child(_make_button("ITEMS\n+25%", _juice_quantity, Vector2(250.0, 58.0)))
+	modifier_grid.add_child(_make_button("CURRENCY\n+25%", _juice_currency, Vector2(250.0, 58.0)))
+	modifier_grid.add_child(_make_button("ELITES\n+3.5%", _juice_elite, Vector2(250.0, 58.0)))
 
-	var run_button := _make_button("RUN CLAIM", _start_claim, Vector2(410.0, 42.0))
-	run_button.add_theme_font_size_override("font_size", 19)
-	root.add_child(run_button)
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 8)
+	root.add_child(action_row)
 
-	var reset_button := _make_button("RESET INVESTMENT", _reset_juice, Vector2(410.0, 27.0))
+	var run_button := _make_button("ENTER CLAIM", _start_claim, Vector2(330.0, 46.0))
+	run_button.add_theme_font_size_override("font_size", 17)
+	action_row.add_child(run_button)
+
+	var reset_button := _make_button("RESET", _reset_juice, Vector2(178.0, 46.0))
 	reset_button.add_theme_font_size_override("font_size", 12)
-	root.add_child(reset_button)
+	action_row.add_child(reset_button)
 
-	claim_unlock_button = _make_button("NEXT TIER LOCKED", _unlock_next_claim_tier, Vector2(410.0, 31.0))
+	claim_unlock_button = _make_button("NEXT TIER LOCKED", _unlock_next_claim_tier, Vector2(515.0, 38.0))
 	claim_unlock_button.add_theme_font_size_override("font_size", 12)
 	root.add_child(claim_unlock_button)
 
@@ -461,65 +473,81 @@ func _build_gear_panel() -> void:
 
 func _build_crafting_panel() -> void:
 	crafting_panel = PanelContainer.new()
-	crafting_panel.position = Vector2(360.0, 92.0)
-	crafting_panel.size = Vector2(560.0, 560.0)
+	crafting_panel.position = Vector2(330.0, 105.0)
+	crafting_panel.size = Vector2(620.0, 535.0)
 	crafting_panel.visible = false
-	crafting_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.030, 0.042, 0.99), Color(0.55, 0.39, 0.16), 2))
+	crafting_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.020, 0.022, 0.028, 0.99), Color(0.40, 0.25, 0.12), 2))
 	hud.add_child(crafting_panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 7)
+	root.add_theme_constant_override("separation", 10)
 	crafting_panel.add_child(root)
 
 	var header := HBoxContainer.new()
 	root.add_child(header)
 	var title := _section_title("CRAFTING BENCH")
+	title.add_theme_font_size_override("font_size", 22)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
-	var close_button := _make_button("CLOSE", _close_crafting_panel, Vector2(82.0, 30.0))
-	close_button.add_theme_font_size_override("font_size", 12)
+	var close_button := _make_button("×", _close_crafting_panel, Vector2(42.0, 30.0))
+	close_button.add_theme_font_size_override("font_size", 18)
 	header.add_child(close_button)
-
-	root.add_child(_muted_label("Build an item over time. Every craft consumes a dropped currency permanently."))
 
 	crafting_currency_label = RichTextLabel.new()
 	crafting_currency_label.bbcode_enabled = true
 	crafting_currency_label.fit_content = false
-	crafting_currency_label.custom_minimum_size = Vector2(525.0, 48.0)
-	crafting_currency_label.add_theme_font_size_override("normal_font_size", 14)
+	crafting_currency_label.custom_minimum_size = Vector2(585.0, 42.0)
+	crafting_currency_label.add_theme_font_size_override("normal_font_size", 13)
 	root.add_child(crafting_currency_label)
+
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 12)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(body)
+
+	var item_panel := PanelContainer.new()
+	item_panel.custom_minimum_size = Vector2(300.0, 390.0)
+	item_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.012,0.014,0.018), Color(0.22,0.18,0.12), 2))
+	body.add_child(item_panel)
 
 	crafting_item_label = RichTextLabel.new()
 	crafting_item_label.bbcode_enabled = true
 	crafting_item_label.fit_content = false
-	crafting_item_label.custom_minimum_size = Vector2(525.0, 160.0)
-	crafting_item_label.add_theme_font_size_override("normal_font_size", 14)
-	root.add_child(crafting_item_label)
+	crafting_item_label.custom_minimum_size = Vector2(270.0, 360.0)
+	crafting_item_label.add_theme_font_size_override("normal_font_size", 13)
+	item_panel.add_child(crafting_item_label)
 
-	var scrap_button := _make_button("SCRAP ORB  •  REROLL VALUES", _craft_scrap, Vector2(525.0, 40.0))
-	scrap_button.add_theme_font_size_override("font_size", 13)
+	var actions := VBoxContainer.new()
+	actions.custom_minimum_size = Vector2(270.0, 390.0)
+	actions.add_theme_constant_override("separation", 9)
+	body.add_child(actions)
+
+	var craft_title := Label.new()
+	craft_title.text = "CRAFTS"
+	craft_title.add_theme_font_size_override("font_size", 13)
+	craft_title.add_theme_color_override("font_color", Color(0.66,0.61,0.52))
+	actions.add_child(craft_title)
+
+	var scrap_button := _make_button("SCRAP ORB\nReroll values", _craft_scrap, Vector2(270.0, 64.0))
 	crafting_buttons["scrap"] = scrap_button
-	root.add_child(scrap_button)
+	actions.add_child(scrap_button)
 
-	var mutation_button := _make_button("MUTATION SHARD  •  SLAM COMMON → MAGIC", _craft_mutation, Vector2(525.0, 40.0))
-	mutation_button.add_theme_font_size_override("font_size", 13)
+	var mutation_button := _make_button("MUTATION SHARD\nCommon → Magic", _craft_mutation, Vector2(270.0, 64.0))
 	crafting_buttons["mutation"] = mutation_button
-	root.add_child(mutation_button)
+	actions.add_child(mutation_button)
 
-	var chaos_button := _make_button("CHAOS TOKEN  •  REROLL NORMAL AFFIXES", _craft_chaos, Vector2(525.0, 40.0))
-	chaos_button.add_theme_font_size_override("font_size", 13)
+	var chaos_button := _make_button("CHAOS TOKEN\nReroll affixes", _craft_chaos, Vector2(270.0, 64.0))
 	crafting_buttons["chaos"] = chaos_button
-	root.add_child(chaos_button)
+	actions.add_child(chaos_button)
 
-	var mechanist_button := _make_button("MECHANIST'S SEAL  •  REROLL MECHANIC", _craft_mechanist, Vector2(525.0, 40.0))
-	mechanist_button.add_theme_font_size_override("font_size", 13)
+	var mechanist_button := _make_button("MECHANIST'S SEAL\nReroll mechanic", _craft_mechanist, Vector2(270.0, 64.0))
 	crafting_buttons["mechanist"] = mechanist_button
-	root.add_child(mechanist_button)
+	actions.add_child(mechanist_button)
 
-	crafting_feedback_label = _muted_label("Select a stash item, then decide how much you are willing to risk on it.")
-	crafting_feedback_label.custom_minimum_size = Vector2(525.0, 38.0)
-	crafting_feedback_label.add_theme_color_override("font_color", Color(0.78, 0.70, 0.52))
-	root.add_child(crafting_feedback_label)
+	crafting_feedback_label = _muted_label("Select an item at the Stash, then bring it here.")
+	crafting_feedback_label.custom_minimum_size = Vector2(270.0, 42.0)
+	crafting_feedback_label.add_theme_color_override("font_color", Color(0.76, 0.66, 0.47))
+	actions.add_child(crafting_feedback_label)
 
 func _build_decision_panel() -> void:
 	decision_panel = PanelContainer.new()
@@ -1715,7 +1743,7 @@ func _update_hub_ui() -> void:
 		var next_tier: int = claim_tier + 1
 		next_gate = "T%d: extract D%d + ₵%d" % [next_tier, _claim_tier_depth_requirement(next_tier), _claim_tier_unlock_cost(next_tier)]
 
-	claim_label.text = "[color=#8d96a6]NEXT CLAIM[/color]  [b]TIER %d[/b]\n[b][font_size=20]ABANDONED CLAIM[/font_size][/b]\n[color=#8d96a6]Loot ceiling[/color] [b]%s[/b]   [color=#8d96a6]Affix ceiling[/color] [b]T%d[/b]\n[color=#8d96a6]Best extract[/color] D%d   [color=#8d96a6]%s[/color]\n[color=#8d96a6]Seals[/color] %d   [color=#8d96a6]Invested[/color] %d   [color=%s][b]%s[/b][/color]\n\nDensity [b]+%d%%[/b]  •  Items [b]+%d%%[/b]\nCurrency [b]+%d%%[/b]  •  Elite [b]+%.1f%%[/b]" % [claim_tier, _tier_loot_ceiling(claim_tier), affix_ceiling, best_depth, next_gate, stash_seals, invested, risk_color, risk, juice_density * 20, juice_quantity * 25, juice_currency * 25, float(juice_elite) * 3.5]
+	claim_label.text = "[font_size=20][b]TIER %d[/b][/font_size]   [color=%s][b]%s[/b][/color]\n[color=#8d96a6]Best extraction[/color]  D%d     [color=#8d96a6]Seals[/color]  %d     [color=#8d96a6]Invested[/color]  %d\n[color=#8d96a6]Loot[/color]  %s     [color=#8d96a6]Affixes[/color]  T%d\n[color=#6f7785]%s[/color]" % [claim_tier, risk_color, risk, best_depth, stash_seals, invested, _tier_loot_ceiling(claim_tier), affix_ceiling, next_gate]
 
 	var stats: Dictionary = _calculate_player_stats()
 	stats_label.text = "[color=#8d96a6]BUILD[/color]\n[b]%.1f[/b] DMG     [b]%.2f[/b] ATK/s\n[b]%.0f[/b] HP      [b]%.0f[/b] MOVE\n\n[color=#8d96a6]FIND[/color]\n[color=#f6d05f][b]%.1f%%[/b] Currency[/color]\n[color=#8dd7ff][b]%.1f%%[/b] Items[/color]" % [float(stats["damage"]), float(stats["attack_speed"]), float(stats["max_hp"]), float(stats["move_speed"]), float(stats["currency_find"]), float(stats["item_find"])]
@@ -2044,7 +2072,7 @@ func _close_crafting_panel() -> void:
 func _refresh_crafting_panel() -> void:
 	if crafting_panel == null:
 		return
-	crafting_currency_label.text = "[color=#8d96a6]MATERIALS[/color]  [color=#d5d9e2]Scrap %d[/color]   [color=#76dc96]Mutation %d[/color]   [color=#d878ff]Chaos %d[/color]   [color=#ffb85c]Mechanist %d[/color]" % [int(stash_crafting.get("scrap", 0)), int(stash_crafting.get("mutation", 0)), int(stash_crafting.get("chaos", 0)), int(stash_crafting.get("mechanist", 0))]
+	crafting_currency_label.text = "[color=#d5d9e2]● %d Scrap[/color]    [color=#76dc96]◆ %d Mutation[/color]    [color=#d878ff]● %d Chaos[/color]    [color=#ffb85c]◆ %d Mechanist[/color]" % [int(stash_crafting.get("scrap", 0)), int(stash_crafting.get("mutation", 0)), int(stash_crafting.get("chaos", 0)), int(stash_crafting.get("mechanist", 0))]
 
 	var index: int = _find_stash_item_index(selected_stash_item_id)
 	if index < 0:
@@ -2067,10 +2095,10 @@ func _refresh_crafting_panel() -> void:
 
 	var chaos_button_variant: Variant = crafting_buttons.get("chaos")
 	if chaos_button_variant is Button:
-		(chaos_button_variant as Button).text = "CHAOS TOKEN  •  REROLL NORMAL AFFIXES" if claim_tier >= 2 else "CHAOS TOKEN  •  UNLOCKS AT CLAIM T2"
+		(chaos_button_variant as Button).text = "CHAOS TOKEN\nReroll affixes" if claim_tier >= 2 else "CHAOS TOKEN\nUnlocks at Claim T2"
 	var mechanic_button_variant: Variant = crafting_buttons.get("mechanist")
 	if mechanic_button_variant is Button:
-		(mechanic_button_variant as Button).text = "MECHANIST'S SEAL  •  REROLL MECHANIC" if claim_tier >= 3 else "MECHANIST'S SEAL  •  UNLOCKS AT CLAIM T3"
+		(mechanic_button_variant as Button).text = "MECHANIST'S SEAL\nReroll mechanic" if claim_tier >= 3 else "MECHANIST'S SEAL\nUnlocks at Claim T3"
 
 func _set_craft_button_state(key: String, enabled: bool) -> void:
 	var button_variant: Variant = crafting_buttons.get(key)
