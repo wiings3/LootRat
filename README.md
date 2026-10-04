@@ -4,6 +4,18 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.42 — ARPG Inventory UI
+- Reworked the Hideout station menus to be cleaner and more ARPG-like.
+- The **Stash is now a real visual grid** instead of a scrolling text list.
+- Items appear as compact rarity-bordered cells with slot glyphs and short base names.
+- Empty stash cells are visually represented, making the inventory read like a physical container.
+- Clicking a grid item opens a dedicated item inspector with comparison, Equip, and Sell actions.
+- Equipment is now displayed as three distinct visual slots: Weapon, Armor, and Charm.
+- The equipment panel shows only compact build stats instead of repeating full item descriptions.
+- The Claim Table was simplified into a compact summary plus a 2×2 modifier grid.
+- The Crafting Bench was simplified into a working-item pane and a separate craft-action column.
+- This pass uses one grid cell per item; variable-size item footprints and drag/drop packing can be added later if they prove worthwhile.
+
 ## v0.41 — Playable Hideout
 - Replaced the always-open dashboard hub with an actual top-down **Hideout level**.
 - The player now physically moves through the Hideout between Claims.
