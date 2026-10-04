@@ -4,6 +4,19 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.41 — Playable Hideout
+- Replaced the always-open dashboard hub with an actual top-down **Hideout level**.
+- The player now physically moves through the Hideout between Claims.
+- Three world stations anchor the loop:
+  - **Stash** — opens loadout, stash, sorting, item inspection, equip, and sell.
+  - **Crafting Bench** — works on the item currently selected at the Stash.
+  - **Claim Table** — handles Claim Tier, Seal investment, modifiers, and starting runs.
+- Contextual **[E] interaction prompts** only appear when standing near a station.
+- Opening a station pauses player movement and shows only that station's interface.
+- **E or Escape** closes the active station and returns control to the Hideout.
+- Claim combat UI remains separate and only appears during runs.
+- The environment is still systems-first shape art; this pass establishes the physical-space workflow before final hideout art and decoration.
+
 ## v0.4 — Crafting Bench
 - Added a hub **Crafting Bench** accessible from any selected stash item.
 - Crafting materials are real unsecured Claim drops and are only banked on successful extraction.
