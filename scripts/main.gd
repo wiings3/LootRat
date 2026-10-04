@@ -8,7 +8,7 @@ const HideoutScript = preload("res://scripts/hideout.gd")
 var rng := RandomNumberGenerator.new()
 
 var arena: LootArena = null
-var hideout: Node2D = null
+var hideout: LootHideout = null
 var actor_layer: Node2D = null
 var projectile_layer: Node2D = null
 var loot_layer: Node2D = null
@@ -261,8 +261,8 @@ func _muted_label(text_value: String) -> Label:
 
 func _build_hub_panel() -> void:
 	hub_panel = PanelContainer.new()
-	hub_panel.position = Vector2(18.0, 90.0)
-	hub_panel.size = Vector2(300.0, 574.0)
+	hub_panel.position = Vector2(420.0, 98.0)
+	hub_panel.size = Vector2(440.0, 550.0)
 	hub_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
 	hud.add_child(hub_panel)
 
@@ -276,7 +276,7 @@ func _build_hub_panel() -> void:
 	claim_label = RichTextLabel.new()
 	claim_label.bbcode_enabled = true
 	claim_label.fit_content = false
-	claim_label.custom_minimum_size = Vector2(270.0, 154.0)
+	claim_label.custom_minimum_size = Vector2(410.0, 150.0)
 	claim_label.add_theme_font_size_override("normal_font_size", 15)
 	root.add_child(claim_label)
 
@@ -284,27 +284,27 @@ func _build_hub_panel() -> void:
 	juice_title.add_theme_color_override("font_color", Color(0.68, 0.72, 0.80))
 	root.add_child(juice_title)
 
-	root.add_child(_make_button("DENSITY  +20%", _juice_density, Vector2(270.0, 31.0)))
-	root.add_child(_make_button("ITEM QUANTITY  +25%", _juice_quantity, Vector2(270.0, 31.0)))
-	root.add_child(_make_button("CURRENCY  +25%", _juice_currency, Vector2(270.0, 31.0)))
-	root.add_child(_make_button("ELITE CHANCE  +3.5%", _juice_elite, Vector2(270.0, 31.0)))
+	root.add_child(_make_button("DENSITY  +20%", _juice_density, Vector2(410.0, 31.0)))
+	root.add_child(_make_button("ITEM QUANTITY  +25%", _juice_quantity, Vector2(410.0, 31.0)))
+	root.add_child(_make_button("CURRENCY  +25%", _juice_currency, Vector2(410.0, 31.0)))
+	root.add_child(_make_button("ELITE CHANCE  +3.5%", _juice_elite, Vector2(410.0, 31.0)))
 
-	var run_button := _make_button("RUN CLAIM", _start_claim, Vector2(270.0, 42.0))
+	var run_button := _make_button("RUN CLAIM", _start_claim, Vector2(410.0, 42.0))
 	run_button.add_theme_font_size_override("font_size", 19)
 	root.add_child(run_button)
 
-	var reset_button := _make_button("RESET INVESTMENT", _reset_juice, Vector2(270.0, 27.0))
+	var reset_button := _make_button("RESET INVESTMENT", _reset_juice, Vector2(410.0, 27.0))
 	reset_button.add_theme_font_size_override("font_size", 12)
 	root.add_child(reset_button)
 
-	claim_unlock_button = _make_button("NEXT TIER LOCKED", _unlock_next_claim_tier, Vector2(270.0, 31.0))
+	claim_unlock_button = _make_button("NEXT TIER LOCKED", _unlock_next_claim_tier, Vector2(410.0, 31.0))
 	claim_unlock_button.add_theme_font_size_override("font_size", 12)
 	root.add_child(claim_unlock_button)
 
 func _build_character_panel() -> void:
 	character_panel = PanelContainer.new()
-	character_panel.position = Vector2(328.0, 90.0)
-	character_panel.size = Vector2(340.0, 574.0)
+	character_panel.position = Vector2(155.0, 92.0)
+	character_panel.size = Vector2(330.0, 560.0)
 	character_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
 	hud.add_child(character_panel)
 
@@ -340,8 +340,8 @@ func _build_character_panel() -> void:
 
 func _build_gear_panel() -> void:
 	gear_panel = PanelContainer.new()
-	gear_panel.position = Vector2(678.0, 90.0)
-	gear_panel.size = Vector2(584.0, 574.0)
+	gear_panel.position = Vector2(495.0, 92.0)
+	gear_panel.size = Vector2(630.0, 560.0)
 	gear_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.030, 0.036, 0.050), Color(0.16, 0.19, 0.25), 1))
 	hud.add_child(gear_panel)
 
@@ -389,7 +389,7 @@ func _build_gear_panel() -> void:
 	root.add_child(content_row)
 
 	var list_panel := PanelContainer.new()
-	list_panel.custom_minimum_size = Vector2(310.0, 430.0)
+	list_panel.custom_minimum_size = Vector2(340.0, 420.0)
 	list_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	list_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.020, 0.024, 0.034), Color(0.10, 0.12, 0.16), 1))
 	content_row.add_child(list_panel)
@@ -406,7 +406,7 @@ func _build_gear_panel() -> void:
 	scroll.add_child(inventory_list)
 
 	var inspector_panel := PanelContainer.new()
-	inspector_panel.custom_minimum_size = Vector2(230.0, 430.0)
+	inspector_panel.custom_minimum_size = Vector2(250.0, 420.0)
 	inspector_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	inspector_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.022, 0.027, 0.038), Color(0.12, 0.15, 0.20), 1))
 	content_row.add_child(inspector_panel)
@@ -425,7 +425,7 @@ func _build_gear_panel() -> void:
 	selected_item_label.bbcode_enabled = true
 	selected_item_label.fit_content = false
 	selected_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	selected_item_label.custom_minimum_size = Vector2(202.0, 238.0)
+	selected_item_label.custom_minimum_size = Vector2(220.0, 260.0)
 	selected_item_label.add_theme_font_size_override("normal_font_size", 14)
 	inspector_root.add_child(selected_item_label)
 
@@ -435,9 +435,6 @@ func _build_gear_panel() -> void:
 	selected_sell_button = _make_button("SELL SELECTED", _sell_selected_item, Vector2(202.0, 38.0))
 	inspector_root.add_child(selected_sell_button)
 
-	selected_craft_button = _make_button("CRAFT SELECTED", _open_crafting_panel, Vector2(202.0, 38.0))
-	selected_craft_button.add_theme_font_size_override("font_size", 13)
-	inspector_root.add_child(selected_craft_button)
 
 	var footer_row := HBoxContainer.new()
 	footer_row.add_theme_constant_override("separation", 8)
@@ -449,8 +446,8 @@ func _build_gear_panel() -> void:
 
 func _build_crafting_panel() -> void:
 	crafting_panel = PanelContainer.new()
-	crafting_panel.position = Vector2(385.0, 92.0)
-	crafting_panel.size = Vector2(510.0, 560.0)
+	crafting_panel.position = Vector2(360.0, 92.0)
+	crafting_panel.size = Vector2(560.0, 560.0)
 	crafting_panel.visible = false
 	crafting_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.030, 0.042, 0.99), Color(0.55, 0.39, 0.16), 2))
 	hud.add_child(crafting_panel)
@@ -473,39 +470,39 @@ func _build_crafting_panel() -> void:
 	crafting_currency_label = RichTextLabel.new()
 	crafting_currency_label.bbcode_enabled = true
 	crafting_currency_label.fit_content = false
-	crafting_currency_label.custom_minimum_size = Vector2(475.0, 48.0)
+	crafting_currency_label.custom_minimum_size = Vector2(525.0, 48.0)
 	crafting_currency_label.add_theme_font_size_override("normal_font_size", 14)
 	root.add_child(crafting_currency_label)
 
 	crafting_item_label = RichTextLabel.new()
 	crafting_item_label.bbcode_enabled = true
 	crafting_item_label.fit_content = false
-	crafting_item_label.custom_minimum_size = Vector2(475.0, 160.0)
+	crafting_item_label.custom_minimum_size = Vector2(525.0, 160.0)
 	crafting_item_label.add_theme_font_size_override("normal_font_size", 14)
 	root.add_child(crafting_item_label)
 
-	var scrap_button := _make_button("SCRAP ORB  •  REROLL VALUES", _craft_scrap, Vector2(475.0, 40.0))
+	var scrap_button := _make_button("SCRAP ORB  •  REROLL VALUES", _craft_scrap, Vector2(525.0, 40.0))
 	scrap_button.add_theme_font_size_override("font_size", 13)
 	crafting_buttons["scrap"] = scrap_button
 	root.add_child(scrap_button)
 
-	var mutation_button := _make_button("MUTATION SHARD  •  SLAM COMMON → MAGIC", _craft_mutation, Vector2(475.0, 40.0))
+	var mutation_button := _make_button("MUTATION SHARD  •  SLAM COMMON → MAGIC", _craft_mutation, Vector2(525.0, 40.0))
 	mutation_button.add_theme_font_size_override("font_size", 13)
 	crafting_buttons["mutation"] = mutation_button
 	root.add_child(mutation_button)
 
-	var chaos_button := _make_button("CHAOS TOKEN  •  REROLL NORMAL AFFIXES", _craft_chaos, Vector2(475.0, 40.0))
+	var chaos_button := _make_button("CHAOS TOKEN  •  REROLL NORMAL AFFIXES", _craft_chaos, Vector2(525.0, 40.0))
 	chaos_button.add_theme_font_size_override("font_size", 13)
 	crafting_buttons["chaos"] = chaos_button
 	root.add_child(chaos_button)
 
-	var mechanist_button := _make_button("MECHANIST'S SEAL  •  REROLL MECHANIC", _craft_mechanist, Vector2(475.0, 40.0))
+	var mechanist_button := _make_button("MECHANIST'S SEAL  •  REROLL MECHANIC", _craft_mechanist, Vector2(525.0, 40.0))
 	mechanist_button.add_theme_font_size_override("font_size", 13)
 	crafting_buttons["mechanist"] = mechanist_button
 	root.add_child(mechanist_button)
 
 	crafting_feedback_label = _muted_label("Select a stash item, then decide how much you are willing to risk on it.")
-	crafting_feedback_label.custom_minimum_size = Vector2(475.0, 38.0)
+	crafting_feedback_label.custom_minimum_size = Vector2(525.0, 38.0)
 	crafting_feedback_label.add_theme_color_override("font_color", Color(0.78, 0.70, 0.52))
 	root.add_child(crafting_feedback_label)
 
