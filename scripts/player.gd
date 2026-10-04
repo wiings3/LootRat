@@ -156,10 +156,10 @@ func _physics_process(delta: float) -> void:
 func _weapon_rate_multiplier() -> float:
 	if weapon_archetype == "blade":
 		match weapon_core:
-			"duelist": return 1.35
-			"whirlwind": return 0.62
+			"duelist": return 1.42
+			"whirlwind": return 0.70
 			"throwing": return 0.80
-			_: return 0.72
+			_: return 0.78
 	match weapon_core:
 		"scatter": return 0.42
 		"piercer": return 0.35
@@ -192,13 +192,13 @@ func _fire() -> void:
 func _fire_blade(aim: Vector2) -> void:
 	match weapon_core:
 		"duelist":
-			_melee_attack(aim, 115.0 * melee_range_mult, 35.0, damage * 0.90 * melee_damage_mult, 85.0)
+			_melee_attack(aim, 132.0 * melee_range_mult, 35.0, damage * 1.18 * melee_damage_mult, 110.0)
 		"whirlwind":
-			_melee_attack(aim, 78.0 * melee_range_mult, 360.0, damage * 0.80 * melee_damage_mult, 130.0)
+			_melee_attack(aim, 94.0 * melee_range_mult, 360.0, damage * 1.05 * melee_damage_mult, 155.0)
 		"throwing":
 			_spawn_recall_blade(aim)
 		_:
-			_melee_attack(aim, 82.0 * melee_range_mult, 105.0, damage * 1.35 * melee_damage_mult, 185.0)
+			_melee_attack(aim, 98.0 * melee_range_mult, 110.0, damage * 1.70 * melee_damage_mult, 225.0)
 
 func _melee_attack(aim: Vector2, reach: float, arc_degrees: float, hit_damage: float, knockback_force: float) -> void:
 	_melee_flash_timer = 0.11
