@@ -2301,7 +2301,7 @@ func _update_equipped_slot_buttons() -> void:
 		var button := button_variant as Button
 		var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
 		if item.is_empty():
-			button.text = "%s\n[color=#4e4a42]EMPTY[/color]" % slot_name.to_upper()
+			button.text = "%s\nEMPTY" % slot_name.to_upper()
 			button.add_theme_color_override("font_color", Color(0.46, 0.43, 0.38))
 			button.add_theme_stylebox_override("normal", _arpg_slot_style(Color(0.18, 0.16, 0.12)))
 			continue
@@ -2605,7 +2605,7 @@ func _close_crafting_panel() -> void:
 func _refresh_crafting_panel() -> void:
 	if crafting_panel == null:
 		return
-	crafting_currency_label.text = "[color=#d5d9e2]● %d Scrap[/color]  [color=#76dc96]◆ %d Mutation[/color]  [color=#d878ff]● %d Chaos[/color]  [color=#ffb85c]◆ %d Mechanist[/color]\n[color=#6fd4ff]GUN[/color] R:%d S:%d P:%d Sp:%d    [color=#ffb86a]BLADE[/color] C:%d D:%d W:%d T:%d" % [int(stash_crafting.get("scrap", 0)), int(stash_crafting.get("mutation", 0)), int(stash_crafting.get("chaos", 0)), int(stash_crafting.get("mechanist", 0)), int(stash_cores.get("repeater", 0)), int(stash_cores.get("scatter", 0)), int(stash_cores.get("piercer", 0)), int(stash_cores.get("sprayer", 0)), int(stash_cores.get("cleaver", 0)), int(stash_cores.get("duelist", 0)), int(stash_cores.get("whirlwind", 0)), int(stash_cores.get("throwing", 0))]
+	crafting_currency_label.text = "[color=#82745a][font_size=10]MATERIALS[/font_size][/color]   [color=#d5d0c6]Scrap[/color] %d    [color=#d5d0c6]Mutation[/color] %d    [color=#d5d0c6]Chaos[/color] %d    [color=#d5d0c6]Mechanist[/color] %d" % [int(stash_crafting.get("scrap", 0)), int(stash_crafting.get("mutation", 0)), int(stash_crafting.get("chaos", 0)), int(stash_crafting.get("mechanist", 0))]
 
 	var index: int = _find_stash_item_index(selected_stash_item_id)
 	if index < 0:
@@ -2632,8 +2632,11 @@ func _refresh_crafting_panel() -> void:
 			var core_button := core_button_variant as Button
 			var compatible: bool = is_weapon and _core_archetype(core_id) == weapon_archetype
 			core_button.visible = compatible
-			core_button.text = "%s  x%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), "  [SLOTTED]" if compatible and core_id == current_core else ""]
-			core_button.disabled = not compatible or core_id == current_core or int(stash_cores.get(core_id, 0)) <= 0
+			var slotted: bool = compatible and core_id == current_core
+			core_button.text = "%s  x%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), "  • SLOTTED" if slotted else ""]
+			core_button.disabled = not compatible or slotted or int(stash_cores.get(core_id, 0)) <= 0
+			core_button.add_theme_stylebox_override("normal", _arpg_button_style(slotted, false))
+			core_button.add_theme_color_override("font_color", Color(0.92, 0.78, 0.50) if slotted else Color(0.72, 0.69, 0.62))
 	var affix_count: int = _item_affix_count(item)
 	var mechanic_count: int = _item_mechanic_count(item)
 
@@ -2651,10 +2654,18 @@ func _refresh_crafting_panel() -> void:
 
 	var chaos_button_variant: Variant = crafting_buttons.get("chaos")
 	if chaos_button_variant is Button:
-		(chaos_button_variant as Button).text = "CHAOS TOKEN  x%d\nReroll all normal modifiers" % int(stash_crafting.get("chaos", 0)) if claim_tier >= 2 else "CHAOS TOKEN\nLocked until Claim T2"
+		var chaos_button := chaos_button_variant as Button
+		if claim_tier >= 2:
+			chaos_button.text = "CHAOS TOKEN  x%d\nReroll all normal modifiers" % int(stash_crafting.get("chaos", 0))
+		else:
+			chaos_button.text = "CHAOS TOKEN\nLocked until Claim T2"
 	var mechanic_button_variant: Variant = crafting_buttons.get("mechanist")
 	if mechanic_button_variant is Button:
-		(mechanic_button_variant as Button).text = "MECHANIST'S SEAL  x%d\nReroll one Augment" % int(stash_crafting.get("mechanist", 0)) if claim_tier >= 3 else "MECHANIST'S SEAL\nLocked until Claim T3"
+		var mechanic_button := mechanic_button_variant as Button
+		if claim_tier >= 3:
+			mechanic_button.text = "MECHANIST'S SEAL  x%d\nReroll one Augment" % int(stash_crafting.get("mechanist", 0))
+		else:
+			mechanic_button.text = "MECHANIST'S SEAL\nLocked until Claim T3"
 
 func _set_craft_button_state(key: String, enabled: bool) -> void:
 	var button_variant: Variant = crafting_buttons.get(key)
