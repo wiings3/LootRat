@@ -14,6 +14,9 @@ var point_blank_bonus: float = 0.0
 var point_blank_range: float = 125.0
 var ricochets: int = 0
 var explosion_fraction: float = 0.0
+var return_target: Node2D = null
+var return_distance: float = 310.0
+var returning: bool = false
 var _hit_ids: Dictionary = {}
 
 func _ready() -> void:
@@ -29,10 +32,30 @@ func _ready() -> void:
 	queue_redraw()
 
 func _physics_process(delta: float) -> void:
+	if core_id == "throwing":
+		if not returning and global_position.distance_to(origin_position) >= return_distance:
+			force_return()
+		if returning:
+			if not is_instance_valid(return_target):
+				queue_free()
+				return
+			var to_owner: Vector2 = return_target.global_position - global_position
+			if to_owner.length() <= 22.0:
+				queue_free()
+				return
+			direction = to_owner.normalized()
+		rotation += delta * 14.0
 	global_position += direction * speed * delta
 	life -= delta
 	if life <= 0.0:
 		queue_free()
+
+func force_return() -> void:
+	if core_id != "throwing" or returning:
+		return
+	returning = true
+	_hit_ids.clear()
+	speed *= 1.18
 
 func _on_body_entered(body: Node) -> void:
 	if not body is LootEnemy:
@@ -50,6 +73,9 @@ func _on_body_entered(body: Node) -> void:
 	var killed: bool = enemy.take_damage(hit_damage, direction, knockback_force)
 	if killed and explosion_fraction > 0.0:
 		_explode(global_position, hit_damage * explosion_fraction)
+
+	if core_id == "throwing":
+		return
 
 	if pierces > 0:
 		pierces -= 1
@@ -113,5 +139,9 @@ func _draw() -> void:
 		"piercer": outer = Color(0.72, 0.38, 1.0)
 		"sprayer": outer = Color(0.28, 1.0, 0.55)
 		"throwing": outer = Color(1.0, 0.66, 0.26)
-	draw_circle(Vector2.ZERO, radius, outer)
-	draw_circle(Vector2.ZERO, maxf(1.5, radius * 0.42), Color.WHITE)
+	if core_id == "throwing":
+		draw_colored_polygon(PackedVector2Array([Vector2(10,0), Vector2(0,5), Vector2(-10,0), Vector2(0,-5)]), outer)
+		draw_line(Vector2(-6,0), Vector2(6,0), Color.WHITE, 2.0)
+	else:
+		draw_circle(Vector2.ZERO, radius, outer)
+		draw_circle(Vector2.ZERO, maxf(1.5, radius * 0.42), Color.WHITE)
