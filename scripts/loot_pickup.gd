@@ -63,9 +63,21 @@ func _build_ground_label() -> void:
 				"mutation":
 					label.text = "MUTATION SHARD"
 					label.add_theme_color_override("font_color", Color(0.46, 0.90, 0.58))
+				"splice":
+					label.text = "SPLICE SHARD"
+					label.add_theme_color_override("font_color", Color(0.38, 0.80, 0.92))
+				"crown":
+					label.text = "CROWN TOKEN"
+					label.add_theme_color_override("font_color", Color(0.96, 0.76, 0.32))
+				"hoarder":
+					label.text = "HOARDER'S ORB"
+					label.add_theme_color_override("font_color", Color(0.98, 0.55, 0.22))
 				"chaos":
 					label.text = "CHAOS TOKEN"
 					label.add_theme_color_override("font_color", Color(0.82, 0.42, 1.0))
+				"polish":
+					label.text = "POLISH ORB"
+					label.add_theme_color_override("font_color", Color(0.88, 0.88, 0.72))
 				"mechanist":
 					label.text = "MECHANIST'S SEAL"
 					label.add_theme_color_override("font_color", Color(1.0, 0.60, 0.20))
@@ -117,8 +129,16 @@ func _draw() -> void:
 			var craft_color := Color(0.80, 0.84, 0.90)
 			if currency_key == "mutation":
 				craft_color = Color(0.38, 0.92, 0.55)
+			elif currency_key == "splice":
+				craft_color = Color(0.30, 0.76, 0.92)
+			elif currency_key == "crown":
+				craft_color = Color(0.96, 0.72, 0.22)
+			elif currency_key == "hoarder":
+				craft_color = Color(0.98, 0.46, 0.16)
 			elif currency_key == "chaos":
 				craft_color = Color(0.78, 0.34, 1.0)
+			elif currency_key == "polish":
+				craft_color = Color(0.88, 0.86, 0.66)
 			elif currency_key == "mechanist":
 				craft_color = Color(1.0, 0.52, 0.12)
 			draw_circle(Vector2.ZERO, 12.0, Color(craft_color.r, craft_color.g, craft_color.b, 0.18))
