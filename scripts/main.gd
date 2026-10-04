@@ -556,7 +556,7 @@ func _build_crafting_panel() -> void:
 		{"id":"cleaver", "label":"BLADE • CLEAVER"},
 		{"id":"duelist", "label":"BLADE • DUELIST"},
 		{"id":"whirlwind", "label":"BLADE • WHIRL"},
-		{"id":"throwing", "label":"BLADE • THROW"}
+		{"id":"throwing", "label":"BLADE • RECALL"}
 	]
 	for spec: Dictionary in core_specs:
 		var core_id: String = String(spec["id"])
@@ -1305,8 +1305,8 @@ func _blade_output_bbcode(item: Dictionary, stats: Dictionary) -> String:
 		"throwing":
 			hit_damage *= 1.15
 			rate_mult = 0.80
-			reach = 0.0
-			shape_text = "PIERCING THROW"
+			reach = 310.0 * range_mult
+			shape_text = "OUT + RETURN"
 		_:
 			hit_damage *= 1.35
 			rate_mult = 0.72
@@ -1414,7 +1414,7 @@ func _weapon_sheet_dps_from_stats(stats: Dictionary) -> float:
 				hit_damage *= 0.80
 				attacks_per_second *= 0.62
 			"throwing":
-				hit_damage *= 1.15
+				hit_damage *= 2.30
 				attacks_per_second *= 0.80
 			_:
 				hit_damage *= 1.35
@@ -1695,7 +1695,7 @@ func _core_name(core_id: String) -> String:
 		"cleaver": return "Cleaver"
 		"duelist": return "Duelist"
 		"whirlwind": return "Whirlwind"
-		"throwing": return "Throwing"
+		"throwing": return "Recall"
 		_: return "Repeater"
 
 func _core_description(core_id: String) -> String:
@@ -1706,7 +1706,7 @@ func _core_description(core_id: String) -> String:
 		"cleaver": return "Slow, wide, heavy frontal sweep"
 		"duelist": return "Fast narrow stab with long melee reach"
 		"whirlwind": return "360° spin that hits everything around you"
-		"throwing": return "Ranged piercing blade throw"
+		"throwing": return "Throw once, then recall through enemies for a second hit"
 		_: return "Reliable automatic single-projectile fire"
 
 func _affix_candidates(slot: String) -> Array[String]:
