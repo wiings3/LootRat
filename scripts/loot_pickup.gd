@@ -28,7 +28,7 @@ func _physics_process(delta: float) -> void:
 	_age += delta
 	velocity = velocity.move_toward(Vector2.ZERO, 420.0 * delta)
 	global_position += velocity * delta
-	if loot_type == "seal" or loot_type == "craft":
+	if loot_type == "seal" or loot_type == "craft" or loot_type == "core":
 		rotation += delta * 1.8
 	elif loot_type == "gear" or loot_type == "jackpot":
 		var pulse: float = 1.0 + sin(_age * 5.0) * 0.045
@@ -72,6 +72,11 @@ func _build_ground_label() -> void:
 				_:
 					label.text = "SCRAP ORB"
 					label.add_theme_color_override("font_color", Color(0.80, 0.84, 0.90))
+		"core":
+			var core_id: String = String(gear.get("core", "repeater"))
+			label.text = "%s CORE" % core_id.to_upper()
+			label.add_theme_font_size_override("font_size", 16)
+			label.add_theme_color_override("font_color", Color(0.38, 0.84, 1.0))
 		"gear":
 			label.text = "%s  ~₵%d" % [String(gear.get("name", "Gear")), int(gear.get("value", 0))]
 			var rarity: String = String(gear.get("rarity", "Common"))
@@ -119,6 +124,12 @@ func _draw() -> void:
 			draw_circle(Vector2.ZERO, 12.0, Color(craft_color.r, craft_color.g, craft_color.b, 0.18))
 			draw_colored_polygon(PackedVector2Array([Vector2(0,-10), Vector2(8,-5), Vector2(9,5), Vector2(0,10), Vector2(-9,5), Vector2(-8,-5)]), craft_color)
 			draw_circle(Vector2.ZERO, 3.0, Color(0.10, 0.11, 0.14))
+		"core":
+			var core_color := Color(0.28, 0.78, 1.0)
+			draw_circle(Vector2.ZERO, 15.0, Color(core_color.r, core_color.g, core_color.b, 0.16))
+			draw_circle(Vector2.ZERO, 10.0, core_color, false, 3.0)
+			draw_colored_polygon(PackedVector2Array([Vector2(0,-8), Vector2(7,0), Vector2(0,8), Vector2(-7,0)]), core_color)
+			draw_circle(Vector2.ZERO, 2.5, Color.WHITE)
 		"gear":
 			var rarity: String = String(gear.get("rarity", "Common"))
 			var gear_color := Color(0.82, 0.84, 0.88)
