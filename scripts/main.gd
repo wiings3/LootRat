@@ -2,10 +2,13 @@ extends Node2D
 
 const SAVE_PATH: String = "user://loot_rat_save.json"
 const ARENA_BOUNDS: Rect2 = Rect2(40.0, 80.0, 1200.0, 590.0)
+const HIDEOUT_BOUNDS: Rect2 = Rect2(70.0, 105.0, 1140.0, 535.0)
+const HideoutScript = preload("res://scripts/hideout.gd")
 
 var rng := RandomNumberGenerator.new()
 
 var arena: LootArena = null
+var hideout: Node2D = null
 var actor_layer: Node2D = null
 var projectile_layer: Node2D = null
 var loot_layer: Node2D = null
@@ -41,6 +44,9 @@ var crafting_feedback_label: Label = null
 var crafting_buttons: Dictionary = {}
 var sort_button: Button = null
 var claim_unlock_button: Button = null
+var interaction_prompt: Label = null
+var hub_modal_open: bool = false
+var active_hub_station: String = ""
 var filter_buttons: Dictionary = {}
 
 var state: String = "hub"
@@ -117,6 +123,10 @@ func _ensure_mouse_action(action: StringName, button_index: MouseButton) -> void
 		InputMap.action_add_event(action, event)
 
 func _build_world() -> void:
+	hideout = HideoutScript.new()
+	add_child(hideout)
+	hideout.visible = true
+
 	arena = LootArena.new()
 	add_child(arena)
 	arena.visible = false
@@ -190,8 +200,18 @@ func _build_ui() -> void:
 	_build_crafting_panel()
 	_build_decision_panel()
 
+	interaction_prompt = Label.new()
+	interaction_prompt.position = Vector2(390.0, 645.0)
+	interaction_prompt.size = Vector2(500.0, 42.0)
+	interaction_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	interaction_prompt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	interaction_prompt.add_theme_font_size_override("font_size", 18)
+	interaction_prompt.add_theme_color_override("font_color", Color(0.92, 0.85, 0.62))
+	interaction_prompt.visible = false
+	hud.add_child(interaction_prompt)
+
 	var controls := Label.new()
-	controls.text = "WASD move   •   Hold LMB fire   •   SPACE dash   •   E enter next room"
+	controls.text = "WASD move   •   SPACE dash   •   E interact   •   ESC close"
 	controls.position = Vector2(20.0, 688.0)
 	controls.add_theme_color_override("font_color", Color(0.50, 0.55, 0.64))
 	hud.add_child(controls)
@@ -534,6 +554,11 @@ func _make_button(text_value: String, callback: Callable, min_size: Vector2 = Ve
 
 func _process(delta: float) -> void:
 	_update_top_bar()
+
+	if state == "hub":
+		_process_hideout_interactions()
+		return
+
 	if state != "run" or not is_instance_valid(player) or decision_open:
 		return
 	if alive_enemies > 0:
@@ -555,24 +580,91 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("interact"):
 		_advance_room()
 
+func _process_hideout_interactions() -> void:
+	if not is_instance_valid(player):
+		return
+
+	if hub_modal_open:
+		interaction_prompt.visible = false
+		if Input.is_action_just_pressed("ui_cancel") or Input.is_action_just_pressed("interact"):
+			_close_hub_station()
+		return
+
+	var nearest: String = ""
+	var nearest_distance: float = 99999.0
+	var station_names: Array[String] = ["stash", "craft", "claim"]
+	for station_name: String in station_names:
+		var station_position: Vector2 = hideout.get_station_position(station_name)
+		var distance: float = player.global_position.distance_to(station_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest = station_name
+
+	if nearest_distance <= 92.0:
+		interaction_prompt.visible = true
+		interaction_prompt.text = "[E]  %s" % hideout.get_station_prompt(nearest)
+		if Input.is_action_just_pressed("interact"):
+			_open_hub_station(nearest)
+	else:
+		interaction_prompt.visible = false
+
+func _open_hub_station(station_name: String) -> void:
+	active_hub_station = station_name
+	hub_modal_open = true
+	if is_instance_valid(player):
+		player.set_physics_process(false)
+	hub_panel.visible = station_name == "claim"
+	character_panel.visible = station_name == "stash"
+	gear_panel.visible = station_name == "stash"
+	crafting_panel.visible = station_name == "craft"
+	if station_name == "craft":
+		_refresh_crafting_panel()
+	else:
+		_update_hub_ui()
+
+func _close_hub_station() -> void:
+	hub_modal_open = false
+	active_hub_station = ""
+	hub_panel.visible = false
+	character_panel.visible = false
+	gear_panel.visible = false
+	crafting_panel.visible = false
+	if is_instance_valid(player):
+		player.set_physics_process(true)
+
 func _enter_hub() -> void:
 	state = "hub"
 	decision_open = false
+	hub_modal_open = false
+	active_hub_station = ""
 	decision_panel.visible = false
 	arena.visible = false
-	hub_panel.visible = true
-	character_panel.visible = true
-	gear_panel.visible = true
+	hideout.visible = true
+	hub_panel.visible = false
+	character_panel.visible = false
+	gear_panel.visible = false
 	crafting_panel.visible = false
 	hp_bar.visible = false
 	run_label.visible = false
 	feed_label.visible = false
+	interaction_prompt.visible = false
 	_clear_runtime_nodes()
+	_spawn_hideout_player()
 	_update_hub_ui()
 	_save_game()
 
+func _spawn_hideout_player() -> void:
+	player = LootPlayer.new()
+	player.world_bounds = HIDEOUT_BOUNDS.grow(-18.0)
+	player.projectile_parent = null
+	player.configure(_calculate_player_stats())
+	actor_layer.add_child(player)
+	player.global_position = Vector2(640.0, 545.0)
+
 func _start_claim() -> void:
 	state = "run"
+	hub_modal_open = false
+	active_hub_station = ""
 	depth = 1
 	run_coins = 0
 	run_seals = 0
@@ -584,9 +676,11 @@ func _start_claim() -> void:
 	character_panel.visible = false
 	gear_panel.visible = false
 	crafting_panel.visible = false
+	interaction_prompt.visible = false
 	hp_bar.visible = true
 	run_label.visible = true
 	feed_label.visible = true
+	hideout.visible = false
 	arena.visible = true
 	decision_panel.visible = false
 	decision_open = false
@@ -1869,15 +1963,10 @@ func _find_stash_item_index(item_id: int) -> int:
 	return -1
 
 func _open_crafting_panel() -> void:
-	if _find_stash_item_index(selected_stash_item_id) < 0:
-		return
-	crafting_panel.visible = true
-	crafting_panel.move_to_front()
-	crafting_feedback_label.text = "A good base can become a long-term project. A bad slam still costs the currency."
-	_refresh_crafting_panel()
+	_open_hub_station("craft")
 
 func _close_crafting_panel() -> void:
-	crafting_panel.visible = false
+	_close_hub_station()
 
 func _refresh_crafting_panel() -> void:
 	if crafting_panel == null:
@@ -2133,7 +2222,7 @@ func _update_top_bar() -> void:
 		top_label.text = "CLAIM"
 		run_label.text = "T%d  D%d  •  ROOM %d/%d  %s  •  %d ENEMIES  •  UNSECURED ₵%d" % [claim_tier, depth, room_index, rooms_total, current_room_type, alive_enemies, _current_run_value()]
 	else:
-		top_label.text = "LOOT RAT"
+		top_label.text = "HIDEOUT"
 		run_label.text = ""
 
 func _add_feed(text_value: String) -> void:
