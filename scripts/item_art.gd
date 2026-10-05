@@ -58,20 +58,24 @@ static func _texture(region: Rect2) -> Texture2D:
 static func texture_for_item(item: Dictionary) -> Texture2D:
 	var base_name: String = String(item.get("base_name", ""))
 	if GEAR_REGIONS.has(base_name):
-		return _texture(GEAR_REGIONS[base_name] as Rect2)
+		var region: Rect2 = GEAR_REGIONS.get(base_name, Rect2())
+		return _texture(region)
 	return null
 
 static func texture_for_currency(key: String) -> Texture2D:
 	if CURRENCY_REGIONS.has(key):
-		return _texture(CURRENCY_REGIONS[key] as Rect2)
+		var region: Rect2 = CURRENCY_REGIONS.get(key, Rect2())
+		return _texture(region)
 	return null
 
 static func texture_for_core(core_id: String) -> Texture2D:
 	if CORE_REGIONS.has(core_id):
-		return _texture(CORE_REGIONS[core_id] as Rect2)
+		var region: Rect2 = CORE_REGIONS.get(core_id, Rect2())
+		return _texture(region)
 	return null
 
 static func texture_for_misc(key: String) -> Texture2D:
 	if MISC_REGIONS.has(key):
-		return _texture(MISC_REGIONS[key] as Rect2)
+		var region: Rect2 = MISC_REGIONS.get(key, Rect2())
+		return _texture(region)
 	return null
