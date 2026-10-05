@@ -2429,36 +2429,105 @@ func _update_equipped_slot_buttons() -> void:
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity)))
 		button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.72, 0.54, 0.25), true))
 
-func _item_matches_browser(item: Dictionary, category: String, weapon_filter: String) -> bool:
+func _item_matches_tab(item: Dictionary, tab: String) -> bool:
 	var slot: String = String(item.get("slot", ""))
-	if slot != category:
-		return false
-	if category == "weapon":
-		return String(item.get("weapon_archetype", "gun")) == weapon_filter
-	return true
+	match tab:
+		"gun":
+			return slot == "weapon" and String(item.get("weapon_archetype", "gun")) == "gun"
+		"blade":
+			return slot == "weapon" and String(item.get("weapon_archetype", "gun")) == "blade"
+		"armor":
+			return slot == "armor"
+		"charm":
+			return slot == "charm"
+		_:
+			return false
 
-func _item_browser_row_text(item: Dictionary) -> String:
-	var rarity: String = String(item.get("rarity", "Common"))
-	var name_value: String = String(item.get("name", "Item"))
-	var item_level: int = int(item.get("item_level", 1))
-	var value: int = int(item.get("value", 0))
+func _stash_search_text(item: Dictionary) -> String:
+	var pieces: Array[String] = [
+		String(item.get("name", "")),
+		String(item.get("base_name", "")),
+		String(item.get("rarity", "")),
+		String(item.get("weapon_archetype", "")),
+		_core_name(String(item.get("core_id", "repeater")))
+	]
+	var affixes_variant: Variant = item.get("affixes", [])
+	if typeof(affixes_variant) == TYPE_ARRAY:
+		var affixes: Array = affixes_variant as Array
+		for affix_variant: Variant in affixes:
+			if typeof(affix_variant) == TYPE_DICTIONARY:
+				var affix: Dictionary = affix_variant as Dictionary
+				pieces.append(String(affix.get("name", "")))
+				pieces.append(String(affix.get("stat", "")))
+	var mechanics_variant: Variant = item.get("mechanics", [])
+	if typeof(mechanics_variant) == TYPE_ARRAY:
+		var mechanics: Array = mechanics_variant as Array
+		for mechanic_variant: Variant in mechanics:
+			if typeof(mechanic_variant) == TYPE_DICTIONARY:
+				var mechanic: Dictionary = mechanic_variant as Dictionary
+				pieces.append(String(mechanic.get("name", "")))
+	return " ".join(pieces).to_lower()
+
+func _matches_search(item: Dictionary, query: String) -> bool:
+	var cleaned: String = query.strip_edges().to_lower()
+	if cleaned.is_empty():
+		return true
+	return _stash_search_text(item).contains(cleaned)
+
+func _stash_tile_text(item: Dictionary) -> String:
 	var slot: String = String(item.get("slot", ""))
+	var base_name: String = _grid_item_short_name(item)
 	if slot == "weapon":
-		var core_name: String = _core_name(String(item.get("core_id", "repeater")))
-		var stats: Dictionary = _calculate_player_stats_with_override("weapon", item)
-		var dps: float = _weapon_sheet_dps_from_stats(stats)
-		return "%s\n%s • %s Core    %.1f DPS    ilvl %d    ₵%d" % [name_value, rarity, core_name, dps, item_level, value]
-	if slot == "armor":
-		return "%s\n%s    +%.0f HP    +%.0f MOVE    ilvl %d    ₵%d" % [name_value, rarity, float(item.get("max_hp", 0.0)), float(item.get("move_speed", 0.0)), item_level, value]
-	return "%s\n%s    +%.1f DMG    +%.1f%% FIND    ilvl %d    ₵%d" % [name_value, rarity, float(item.get("damage", 0.0)), float(item.get("item_find", 0.0)) + float(item.get("currency_find", 0.0)), item_level, value]
+		return "%s\n%s" % [base_name, _core_name(String(item.get("core_id", "repeater")))]
+	return "%s\n%s" % [_grid_item_glyph(slot), base_name]
 
 func _rebuild_inventory() -> void:
 	for child: Node in inventory_list.get_children():
 		child.queue_free()
 
+	if stash_filter == "currency":
+		var currency_order: Array[String] = ["mutation", "splice", "scrap", "crown", "hoarder", "chaos", "polish", "mechanist"]
+		var currency_count: int = 0
+		for key: String in currency_order:
+			var search_blob: String = ("%s %s" % [_craft_currency_name(key), key]).to_lower()
+			if not stash_search_query.strip_edges().is_empty() and not search_blob.contains(stash_search_query.to_lower()):
+				continue
+			currency_count += 1
+			var button := Button.new()
+			button.custom_minimum_size = Vector2(88.0, 88.0)
+			button.text = "●\n%s\n×%d" % [_craft_currency_name(key), int(stash_crafting.get(key, 0))]
+			button.add_theme_font_size_override("font_size", 8)
+			button.disabled = true
+			button.add_theme_stylebox_override("disabled", _arpg_slot_style(Color(0.58, 0.46, 0.24)))
+			button.add_theme_color_override("font_disabled_color", Color(0.82, 0.76, 0.64))
+			inventory_list.add_child(button)
+		stash_count_label.text = "CURRENCY • %d" % currency_count
+		_update_stash_controls()
+		return
+
+	if stash_filter == "cores":
+		var core_order: Array[String] = ["repeater", "scatter", "piercer", "sprayer", "cleaver", "duelist", "whirlwind", "throwing"]
+		var core_count: int = 0
+		for core_id: String in core_order:
+			var search_blob: String = ("%s core %s" % [_core_name(core_id), _core_archetype(core_id)]).to_lower()
+			if not stash_search_query.strip_edges().is_empty() and not search_blob.contains(stash_search_query.to_lower()):
+				continue
+			core_count += 1
+			var button := Button.new()
+			button.custom_minimum_size = Vector2(88.0, 88.0)
+			button.text = "◆\n%s\n×%d" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0))]
+			button.add_theme_font_size_override("font_size", 8)
+			button.disabled = true
+			button.add_theme_stylebox_override("disabled", _arpg_slot_style(Color(0.25, 0.58, 0.72)))
+			button.add_theme_color_override("font_disabled_color", Color(0.55, 0.86, 1.0))
+			inventory_list.add_child(button)
+		stash_count_label.text = "CORES • %d" % core_count
+		_update_stash_controls()
+		return
+
 	var filtered_items: Array[Dictionary] = []
 	for item: Dictionary in stash_gear:
-		if _item_matches_browser(item, stash_filter, stash_weapon_filter):
+		if _item_matches_tab(item, stash_filter) and _matches_search(item, stash_search_query):
 			filtered_items.append(item)
 
 	match stash_sort_mode:
@@ -2475,33 +2544,22 @@ func _rebuild_inventory() -> void:
 		"newest":
 			filtered_items.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("id", 0)) > int(b.get("id", 0)))
 
-	var category_name: String = stash_filter.capitalize()
-	if stash_filter == "weapon":
-		category_name = "%sS" % stash_weapon_filter.to_upper()
-	stash_count_label.text = "%s • %d" % [category_name, filtered_items.size()]
-
-	if filtered_items.is_empty():
-		var empty := Label.new()
-		empty.text = "No %s in stash." % category_name.to_lower()
-		empty.custom_minimum_size = Vector2(520.0, 70.0)
-		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		empty.add_theme_color_override("font_color", Color(0.42, 0.40, 0.36))
-		inventory_list.add_child(empty)
-		return
-
+	stash_count_label.text = "%s • %d" % [stash_filter.to_upper(), filtered_items.size()]
 	for item: Dictionary in filtered_items:
 		var item_id: int = int(item.get("id", -1))
 		var rarity: String = String(item.get("rarity", "Common"))
-		var button := Button.new()
-		button.custom_minimum_size = Vector2(520.0, 58.0)
-		button.text = _item_browser_row_text(item)
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", 10)
 		var selected: bool = item_id == selected_stash_item_id
-		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity), selected))
-		button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.74, 0.57, 0.29), true))
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(88.0, 88.0)
+		button.text = _stash_tile_text(item)
+		button.add_theme_font_size_override("font_size", 9)
+		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.tooltip_text = String(item.get("name", "Item"))
 		button.add_theme_color_override("font_color", _rarity_color(rarity))
+		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity), selected))
+		button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.76, 0.58, 0.28), true))
+		button.mouse_entered.connect(_hover_stash_item.bind(item_id))
+		button.mouse_exited.connect(_unhover_stash_item.bind(item_id))
 		button.pressed.connect(_select_stash_item.bind(item_id))
 		inventory_list.add_child(button)
 
@@ -2538,16 +2596,18 @@ func _rarity_color(rarity: String) -> Color:
 func _set_stash_filter(filter_value: String) -> void:
 	stash_filter = filter_value
 	selected_stash_item_id = -1
+	hovered_stash_item_id = -1
 	_rebuild_inventory()
 	_refresh_selected_item()
 	_update_stash_controls()
 
-func _set_stash_weapon_filter(filter_value: String) -> void:
-	stash_weapon_filter = filter_value
-	selected_stash_item_id = -1
+func _on_stash_search_changed(new_text: String) -> void:
+	stash_search_query = new_text
 	_rebuild_inventory()
-	_refresh_selected_item()
-	_update_stash_controls()
+
+func _on_crafting_search_changed(new_text: String) -> void:
+	crafting_search_query = new_text
+	_refresh_crafting_sources()
 
 func _cycle_stash_sort() -> void:
 	match stash_sort_mode:
@@ -2566,20 +2626,31 @@ func _update_stash_controls() -> void:
 			var active: bool = key == stash_filter
 			button.add_theme_stylebox_override("normal", _arpg_button_style(active, false))
 			button.add_theme_color_override("font_color", Color(0.93, 0.81, 0.55) if active else Color(0.59, 0.56, 0.50))
-	for key_variant: Variant in weapon_filter_buttons.keys():
-		var key: String = String(key_variant)
-		var button_variant: Variant = weapon_filter_buttons.get(key)
-		if button_variant is Button:
-			var button := button_variant as Button
-			button.visible = stash_filter == "weapon"
-			var active: bool = key == stash_weapon_filter
-			button.add_theme_stylebox_override("normal", _arpg_button_style(active, false))
-			button.add_theme_color_override("font_color", Color(0.93, 0.81, 0.55) if active else Color(0.59, 0.56, 0.50))
 	if sort_button != null:
+		sort_button.visible = stash_filter != "currency" and stash_filter != "cores"
 		match stash_sort_mode:
-			"rarity": sort_button.text = "SORT: RARITY"
-			"newest": sort_button.text = "SORT: NEW"
-			_: sort_button.text = "SORT: VALUE"
+			"rarity": sort_button.text = "RARITY"
+			"newest": sort_button.text = "NEW"
+			_: sort_button.text = "VALUE"
+
+func _hover_stash_item(item_id: int) -> void:
+	hovered_stash_item_id = item_id
+	var index: int = _find_stash_item_index(item_id)
+	if index < 0:
+		return
+	var item: Dictionary = stash_gear[index]
+	var slot: String = String(item.get("slot", "charm"))
+	var current: Dictionary = equipped.get(slot, {}) as Dictionary
+	selected_item_label.text = _item_to_bbcode(item)
+	var comparison: String = _comparison_bbcode(item, current)
+	if comparison != "[color=#8d96a6]No numerical or mechanical change.[/color]":
+		selected_item_label.text += "\n\n[color=#777f8d][font_size=11]VS EQUIPPED[/font_size][/color]\n%s" % comparison
+
+func _unhover_stash_item(item_id: int) -> void:
+	if hovered_stash_item_id != item_id:
+		return
+	hovered_stash_item_id = -1
+	_refresh_selected_item()
 
 func _select_equipped_slot(slot_name: String) -> void:
 	var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
@@ -2592,6 +2663,7 @@ func _select_equipped_slot(slot_name: String) -> void:
 
 func _select_stash_item(item_id: int) -> void:
 	selected_stash_item_id = item_id
+	hovered_stash_item_id = -1
 	_rebuild_inventory()
 	_refresh_selected_item()
 
@@ -2692,7 +2764,7 @@ func _sell_filtered_gear() -> void:
 	var sale: int = 0
 	var kept: Array[Dictionary] = []
 	for item: Dictionary in stash_gear:
-		var matches_filter: bool = _item_matches_browser(item, stash_filter, stash_weapon_filter)
+		var matches_filter: bool = _item_matches_tab(item, stash_filter)
 		if matches_filter:
 			sale += int(item.get("value", 0))
 		else:
@@ -3463,10 +3535,11 @@ func _wipe_save() -> void:
 	selected_stash_item_id = -1
 	crafting_target_source = "none"
 	crafting_target_slot = ""
-	stash_filter = "weapon"
-	stash_weapon_filter = "gun"
-	crafting_filter = "weapon"
-	crafting_weapon_filter = "gun"
+	stash_filter = "gun"
+	crafting_filter = "gun"
+	stash_search_query = ""
+	crafting_search_query = ""
+	armed_craft_currency = ""
 	stash_sort_mode = "value"
 	claim_tier = 1
 	tier_best_depths = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
