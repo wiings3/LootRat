@@ -1,6 +1,8 @@
 class_name LootPickup
 extends Area2D
 
+const ItemArt = preload("res://scripts/item_art.gd")
+
 signal collected(pickup: LootPickup)
 
 var loot_type: String = "coin"
@@ -21,6 +23,7 @@ func _ready() -> void:
 	shape.shape = circle
 	add_child(shape)
 	body_entered.connect(_on_body_entered)
+	_build_sprite_art()
 	_build_ground_label()
 	queue_redraw()
 
@@ -39,6 +42,35 @@ func _physics_process(delta: float) -> void:
 		if dist < magnet_radius:
 			var pull: float = remap(clampf(dist, 18.0, magnet_radius), 18.0, magnet_radius, 1050.0, 260.0)
 			global_position = global_position.move_toward(player.global_position, pull * delta)
+
+func _build_sprite_art() -> void:
+	var texture: Texture2D = null
+	match loot_type:
+		"coin":
+			texture = ItemArt.texture_for_misc("coin")
+		"seal":
+			texture = ItemArt.texture_for_misc("seal")
+		"craft":
+			texture = ItemArt.texture_for_currency(String(gear.get("currency", "scrap")))
+		"core":
+			texture = ItemArt.texture_for_core(String(gear.get("core", "repeater")))
+		"gear":
+			texture = ItemArt.texture_for_item(gear)
+		"jackpot":
+			texture = ItemArt.texture_for_misc("coin")
+	if texture == null:
+		return
+	var sprite := Sprite2D.new()
+	sprite.texture = texture
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.z_index = 2
+	var art_scale: float = 1.65
+	if loot_type == "gear":
+		art_scale = 1.85
+	elif loot_type == "jackpot":
+		art_scale = 2.15
+	sprite.scale = Vector2.ONE * art_scale
+	add_child(sprite)
 
 func _build_ground_label() -> void:
 	if loot_type == "coin":
@@ -118,50 +150,19 @@ func _collect() -> void:
 	queue_free()
 
 func _draw() -> void:
-	match loot_type:
-		"coin":
-			draw_circle(Vector2.ZERO, 8.0, Color(1.0, 0.78, 0.08))
-			draw_circle(Vector2.ZERO, 4.0, Color(1.0, 0.95, 0.48))
-		"seal":
-			draw_colored_polygon(PackedVector2Array([Vector2(0,-10), Vector2(9,0), Vector2(0,10), Vector2(-9,0)]), Color(0.25, 0.85, 1.0))
-		"craft":
-			var currency_key: String = String(gear.get("currency", "scrap"))
-			var craft_color := Color(0.80, 0.84, 0.90)
-			if currency_key == "mutation":
-				craft_color = Color(0.38, 0.92, 0.55)
-			elif currency_key == "splice":
-				craft_color = Color(0.30, 0.76, 0.92)
-			elif currency_key == "crown":
-				craft_color = Color(0.96, 0.72, 0.22)
-			elif currency_key == "hoarder":
-				craft_color = Color(0.98, 0.46, 0.16)
-			elif currency_key == "chaos":
-				craft_color = Color(0.78, 0.34, 1.0)
-			elif currency_key == "polish":
-				craft_color = Color(0.88, 0.86, 0.66)
-			elif currency_key == "mechanist":
-				craft_color = Color(1.0, 0.52, 0.12)
-			draw_circle(Vector2.ZERO, 12.0, Color(craft_color.r, craft_color.g, craft_color.b, 0.18))
-			draw_colored_polygon(PackedVector2Array([Vector2(0,-10), Vector2(8,-5), Vector2(9,5), Vector2(0,10), Vector2(-9,5), Vector2(-8,-5)]), craft_color)
-			draw_circle(Vector2.ZERO, 3.0, Color(0.10, 0.11, 0.14))
-		"core":
-			var core_color := Color(0.28, 0.78, 1.0)
-			draw_circle(Vector2.ZERO, 15.0, Color(core_color.r, core_color.g, core_color.b, 0.16))
-			draw_circle(Vector2.ZERO, 10.0, core_color, false, 3.0)
-			draw_colored_polygon(PackedVector2Array([Vector2(0,-8), Vector2(7,0), Vector2(0,8), Vector2(-7,0)]), core_color)
-			draw_circle(Vector2.ZERO, 2.5, Color.WHITE)
-		"gear":
-			var rarity: String = String(gear.get("rarity", "Common"))
-			var gear_color := Color(0.82, 0.84, 0.88)
-			if rarity == "Magic":
-				gear_color = Color(0.39, 0.66, 1.0)
-			elif rarity == "Rare":
-				gear_color = Color(0.85, 0.32, 1.0)
-			elif rarity == "Gilded":
-				gear_color = Color(1.0, 0.75, 0.10)
-			draw_circle(Vector2.ZERO, 15.0 if rarity != "Gilded" else 20.0, Color(gear_color.r, gear_color.g, gear_color.b, 0.16))
-			draw_colored_polygon(PackedVector2Array([Vector2(0,-11), Vector2(10,-3), Vector2(6,10), Vector2(-6,10), Vector2(-10,-3)]), gear_color)
-		"jackpot":
-			draw_circle(Vector2.ZERO, 22.0, Color(1.0, 0.75, 0.10, 0.16))
-			draw_colored_polygon(PackedVector2Array([Vector2(0,-14), Vector2(13,0), Vector2(0,14), Vector2(-13,0)]), Color(1.0, 0.72, 0.08))
-			draw_circle(Vector2.ZERO, 5.0, Color.WHITE)
+	if loot_type == "gear":
+		var rarity: String = String(gear.get("rarity", "Common"))
+		var glow := Color(0.82, 0.84, 0.88)
+		if rarity == "Magic":
+			glow = Color(0.39, 0.66, 1.0)
+		elif rarity == "Rare":
+			glow = Color(0.85, 0.32, 1.0)
+		elif rarity == "Gilded":
+			glow = Color(1.0, 0.75, 0.10)
+		draw_circle(Vector2.ZERO, 16.0 if rarity != "Gilded" else 21.0, Color(glow.r, glow.g, glow.b, 0.14))
+	elif loot_type == "jackpot":
+		draw_circle(Vector2.ZERO, 23.0, Color(1.0, 0.75, 0.10, 0.15))
+	elif loot_type == "craft":
+		draw_circle(Vector2.ZERO, 14.0, Color(0.80, 0.68, 0.34, 0.10))
+	elif loot_type == "core":
+		draw_circle(Vector2.ZERO, 14.0, Color(0.30, 0.78, 1.0, 0.10))
