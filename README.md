@@ -4,6 +4,21 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.55 — Focused Inventory Browser
+- Replaced the 40-cell wall-of-items stash with a focused category browser.
+- The Stash now opens directly into **Weapons / Armor / Charms** instead of an All-items view.
+- Weapons split again into **Guns / Blades**, so different weapon archetypes are never mixed into one visual pile.
+- Items are shown as larger readable rows instead of tiny square cells. Each row surfaces identity, rarity, ilvl, value, and the most useful slot-specific summary.
+- The right-side inspector remains the only place for full item detail and equipped comparison.
+- Selling by category now respects the active weapon subtype (for example Guns only, not every Weapon).
+- The Workbench uses the same focused browser hierarchy instead of embedding a mini all-items stash.
+- Workbench crafting actions are contextual: only operations that make sense for the selected item's current rarity/state are visible.
+- Weapon Core controls disappear entirely for Armor and Charms.
+- The Workbench material strip only lists currencies the player actually owns.
+- Selecting equipped or stashed gear automatically moves the Workbench browser to the matching category/archetype.
+
+Design rule: **menus should reveal the next relevant decision, not every possible decision at once.**
+
 ## v0.54 — Chained Crafting System
 LootRat crafting has been rebuilt around the core Path of Exile idea that **currency performs clear transformations on an item's current state**.
 
