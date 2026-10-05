@@ -809,7 +809,7 @@ func _set_button_art(button: Button, texture: Texture2D, max_width: int = 32) ->
 		button.icon = null
 		return
 	button.icon = texture
-	button.icon_max_width = max_width
+	button.add_theme_constant_override("icon_max_width", max_width)
 	button.expand_icon = true
 	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
