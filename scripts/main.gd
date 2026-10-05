@@ -49,6 +49,12 @@ var crafting_stash_grid: GridContainer = null
 var crafting_equipped_buttons: Dictionary = {}
 var crafting_target_source: String = "none"
 var crafting_target_slot: String = ""
+var armed_craft_currency: String = ""
+var hovered_stash_item_id: int = -1
+var stash_search_query: String = ""
+var crafting_search_query: String = ""
+var stash_search_edit: LineEdit = null
+var crafting_search_edit: LineEdit = null
 var sort_button: Button = null
 var claim_unlock_button: Button = null
 var interaction_prompt: Label = null
@@ -58,9 +64,7 @@ var filter_buttons: Dictionary = {}
 var weapon_filter_buttons: Dictionary = {}
 var crafting_filter_buttons: Dictionary = {}
 var crafting_weapon_filter_buttons: Dictionary = {}
-var stash_weapon_filter: String = "gun"
-var crafting_filter: String = "weapon"
-var crafting_weapon_filter: String = "gun"
+var crafting_filter: String = "gun"
 
 var state: String = "hub"
 var depth: int = 1
@@ -97,7 +101,7 @@ var juice_elite: int = 0
 var feed_lines: Array[String] = []
 
 var selected_stash_item_id: int = -1
-var stash_filter: String = "weapon"
+var stash_filter: String = "gun"
 var stash_sort_mode: String = "value"
 
 var claim_tier: int = 1
@@ -363,8 +367,8 @@ func _build_hub_panel() -> void:
 
 func _build_character_panel() -> void:
 	character_panel = PanelContainer.new()
-	character_panel.position = Vector2(45.0, 88.0)
-	character_panel.size = Vector2(270.0, 570.0)
+	character_panel.position = Vector2(760.0, 88.0)
+	character_panel.size = Vector2(475.0, 570.0)
 	character_panel.add_theme_stylebox_override("panel", _arpg_frame_style(true))
 	hud.add_child(character_panel)
 
@@ -372,48 +376,71 @@ func _build_character_panel() -> void:
 	root.add_theme_constant_override("separation", 6)
 	character_panel.add_child(root)
 
-	var title := _section_title("CHARACTER")
+	var title := _section_title("INVENTORY")
 	root.add_child(title)
 
-	var subtitle := Label.new()
-	subtitle.text = "EQUIPMENT"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 10)
-	subtitle.add_theme_color_override("font_color", Color(0.47, 0.43, 0.35))
-	root.add_child(subtitle)
+	var equipment_title := Label.new()
+	equipment_title.text = "EQUIPPED"
+	equipment_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	equipment_title.add_theme_font_size_override("font_size", 10)
+	equipment_title.add_theme_color_override("font_color", Color(0.48, 0.43, 0.34))
+	root.add_child(equipment_title)
 
-	var slot_grid := VBoxContainer.new()
-	slot_grid.add_theme_constant_override("separation", 7)
-	root.add_child(slot_grid)
-
-	var slot_specs: Array[Dictionary] = [
-		{"key":"weapon", "label":"WEAPON", "glyph":"⚔"},
-		{"key":"armor", "label":"ARMOR", "glyph":"▣"},
-		{"key":"charm", "label":"CHARM", "glyph":"◆"}
-	]
-	for spec: Dictionary in slot_specs:
+	var slot_row := HBoxContainer.new()
+	slot_row.add_theme_constant_override("separation", 6)
+	root.add_child(slot_row)
+	for spec: Dictionary in [
+		{"key":"weapon", "label":"WEAPON"},
+		{"key":"armor", "label":"ARMOR"},
+		{"key":"charm", "label":"CHARM"}
+	]:
 		var slot_key: String = String(spec["key"])
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(246.0, 88.0)
+		button.custom_minimum_size = Vector2(143.0, 95.0)
 		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		button.add_theme_font_size_override("font_size", 12)
+		button.add_theme_font_size_override("font_size", 10)
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(Color(0.22, 0.19, 0.14)))
 		button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.45, 0.34, 0.20)))
 		button.pressed.connect(_select_equipped_slot.bind(slot_key))
 		equipped_slot_buttons[slot_key] = button
-		slot_grid.add_child(button)
-
-	var divider := HSeparator.new()
-	divider.add_theme_constant_override("separation", 2)
-	root.add_child(divider)
+		slot_row.add_child(button)
 
 	stats_label = RichTextLabel.new()
 	stats_label.bbcode_enabled = true
 	stats_label.fit_content = false
-	stats_label.custom_minimum_size = Vector2(246.0, 178.0)
-	stats_label.add_theme_font_size_override("normal_font_size", 12)
-	stats_label.add_theme_constant_override("line_separation", 3)
+	stats_label.custom_minimum_size = Vector2(447.0, 84.0)
+	stats_label.add_theme_font_size_override("normal_font_size", 11)
+	stats_label.add_theme_constant_override("line_separation", 2)
 	root.add_child(stats_label)
+
+	root.add_child(HSeparator.new())
+
+	var inspect_title := Label.new()
+	inspect_title.text = "ITEM DETAILS"
+	inspect_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inspect_title.add_theme_font_size_override("font_size", 10)
+	inspect_title.add_theme_color_override("font_color", Color(0.48, 0.43, 0.34))
+	root.add_child(inspect_title)
+
+	selected_item_label = RichTextLabel.new()
+	selected_item_label.bbcode_enabled = true
+	selected_item_label.fit_content = false
+	selected_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	selected_item_label.custom_minimum_size = Vector2(447.0, 240.0)
+	selected_item_label.add_theme_font_size_override("normal_font_size", 12)
+	selected_item_label.add_theme_constant_override("line_separation", 2)
+	root.add_child(selected_item_label)
+
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 5)
+	root.add_child(action_row)
+	selected_equip_button = _make_button("EQUIP", _equip_selected_item, Vector2(220.0, 34.0))
+	selected_equip_button.add_theme_font_size_override("font_size", 11)
+	selected_equip_button.add_theme_stylebox_override("normal", _arpg_button_style(true))
+	action_row.add_child(selected_equip_button)
+	selected_sell_button = _make_button("SELL", _sell_selected_item, Vector2(220.0, 34.0))
+	selected_sell_button.add_theme_font_size_override("font_size", 10)
+	action_row.add_child(selected_sell_button)
 
 	equipped_label = RichTextLabel.new()
 	equipped_label.visible = false
@@ -421,131 +448,79 @@ func _build_character_panel() -> void:
 
 func _build_gear_panel() -> void:
 	gear_panel = PanelContainer.new()
-	gear_panel.position = Vector2(323.0, 88.0)
-	gear_panel.size = Vector2(912.0, 570.0)
+	gear_panel.position = Vector2(45.0, 88.0)
+	gear_panel.size = Vector2(705.0, 570.0)
 	gear_panel.add_theme_stylebox_override("panel", _arpg_frame_style(true))
 	hud.add_child(gear_panel)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 6)
+	root.add_theme_constant_override("separation", 5)
 	gear_panel.add_child(root)
 
-	var header_row := HBoxContainer.new()
-	root.add_child(header_row)
-	var header_spacer_left := Control.new()
-	header_spacer_left.custom_minimum_size = Vector2(110.0, 1.0)
-	header_row.add_child(header_spacer_left)
+	var header := HBoxContainer.new()
+	root.add_child(header)
 	var title := _section_title("STASH")
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_row.add_child(title)
+	header.add_child(title)
 	stash_count_label = _muted_label("")
-	stash_count_label.custom_minimum_size = Vector2(110.0, 1.0)
+	stash_count_label.custom_minimum_size = Vector2(100.0, 1.0)
 	stash_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	stash_count_label.add_theme_font_size_override("font_size", 11)
-	header_row.add_child(stash_count_label)
+	stash_count_label.add_theme_font_size_override("font_size", 10)
+	header.add_child(stash_count_label)
 
-	var category_row := HBoxContainer.new()
-	category_row.add_theme_constant_override("separation", 4)
-	root.add_child(category_row)
-	var category_specs: Array[Dictionary] = [
-		{"key":"weapon", "label":"WEAPONS"},
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 2)
+	root.add_child(tabs)
+	for spec: Dictionary in [
+		{"key":"gun", "label":"GUNS"},
+		{"key":"blade", "label":"BLADES"},
 		{"key":"armor", "label":"ARMOR"},
-		{"key":"charm", "label":"CHARMS"}
-	]
-	for spec: Dictionary in category_specs:
+		{"key":"charm", "label":"CHARMS"},
+		{"key":"currency", "label":"CURRENCY"},
+		{"key":"cores", "label":"CORES"}
+	]:
 		var key: String = String(spec["key"])
-		var button := _make_button(String(spec["label"]), _set_stash_filter.bind(key), Vector2(120.0, 30.0))
-		button.add_theme_font_size_override("font_size", 10)
+		var button := _make_button(String(spec["label"]), _set_stash_filter.bind(key), Vector2(106.0, 28.0))
+		button.add_theme_font_size_override("font_size", 9)
 		filter_buttons[key] = button
-		category_row.add_child(button)
-	var category_spacer := Control.new()
-	category_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	category_row.add_child(category_spacer)
-	sort_button = _make_button("SORT: VALUE", _cycle_stash_sort, Vector2(110.0, 30.0))
-	sort_button.add_theme_font_size_override("font_size", 9)
-	category_row.add_child(sort_button)
+		tabs.add_child(button)
 
-	var weapon_row := HBoxContainer.new()
-	weapon_row.name = "WeaponFilterRow"
-	weapon_row.add_theme_constant_override("separation", 4)
-	root.add_child(weapon_row)
-	var guns_button := _make_button("GUNS", _set_stash_weapon_filter.bind("gun"), Vector2(92.0, 25.0))
-	guns_button.add_theme_font_size_override("font_size", 9)
-	weapon_filter_buttons["gun"] = guns_button
-	weapon_row.add_child(guns_button)
-	var blades_button := _make_button("BLADES", _set_stash_weapon_filter.bind("blade"), Vector2(92.0, 25.0))
-	blades_button.add_theme_font_size_override("font_size", 9)
-	weapon_filter_buttons["blade"] = blades_button
-	weapon_row.add_child(blades_button)
-
-	var content_row := HBoxContainer.new()
-	content_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_row.add_theme_constant_override("separation", 8)
-	root.add_child(content_row)
-
-	var list_panel := PanelContainer.new()
-	list_panel.custom_minimum_size = Vector2(548.0, 410.0)
-	list_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.010, 0.010, 0.009), Color(0.18, 0.15, 0.10), 1))
-	content_row.add_child(list_panel)
+	var grid_panel := PanelContainer.new()
+	grid_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.009, 0.009, 0.008), Color(0.17, 0.14, 0.09), 1))
+	root.add_child(grid_panel)
 
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	list_panel.add_child(scroll)
+	grid_panel.add_child(scroll)
 
 	inventory_list = GridContainer.new()
-	inventory_list.columns = 1
+	inventory_list.columns = 7
 	inventory_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inventory_list.add_theme_constant_override("h_separation", 3)
 	inventory_list.add_theme_constant_override("v_separation", 3)
 	scroll.add_child(inventory_list)
 
-	var inspector_panel := PanelContainer.new()
-	inspector_panel.custom_minimum_size = Vector2(326.0, 410.0)
-	inspector_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.018, 0.017, 0.015), Color(0.26, 0.21, 0.13), 1))
-	content_row.add_child(inspector_panel)
-
-	var inspector_root := VBoxContainer.new()
-	inspector_root.add_theme_constant_override("separation", 5)
-	inspector_panel.add_child(inspector_root)
-
-	var inspect_header := Label.new()
-	inspect_header.text = "SELECTED ITEM"
-	inspect_header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inspect_header.add_theme_font_size_override("font_size", 10)
-	inspect_header.add_theme_color_override("font_color", Color(0.52, 0.46, 0.34))
-	inspector_root.add_child(inspect_header)
-	inspector_root.add_child(HSeparator.new())
-
-	selected_item_label = RichTextLabel.new()
-	selected_item_label.bbcode_enabled = true
-	selected_item_label.fit_content = false
-	selected_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	selected_item_label.custom_minimum_size = Vector2(300.0, 305.0)
-	selected_item_label.add_theme_font_size_override("normal_font_size", 12)
-	selected_item_label.add_theme_constant_override("line_separation", 2)
-	inspector_root.add_child(selected_item_label)
-
-	selected_equip_button = _make_button("EQUIP", _equip_selected_item, Vector2(300.0, 34.0))
-	selected_equip_button.add_theme_font_size_override("font_size", 12)
-	selected_equip_button.add_theme_stylebox_override("normal", _arpg_button_style(true))
-	inspector_root.add_child(selected_equip_button)
-
-	selected_sell_button = _make_button("SELL", _sell_selected_item, Vector2(300.0, 28.0))
-	selected_sell_button.add_theme_font_size_override("font_size", 10)
-	inspector_root.add_child(selected_sell_button)
-
 	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override("separation", 5)
 	root.add_child(footer)
-	var sell_filtered := _make_button("SELL THIS CATEGORY", _sell_filtered_gear, Vector2(150.0, 25.0))
-	sell_filtered.add_theme_font_size_override("font_size", 9)
-	footer.add_child(sell_filtered)
-	var footer_spacer := Control.new()
-	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	footer.add_child(footer_spacer)
-	var wipe_button := _make_button("WIPE SAVE", _wipe_save, Vector2(82.0, 25.0))
-	wipe_button.add_theme_font_size_override("font_size", 9)
+
+	stash_search_edit = LineEdit.new()
+	stash_search_edit.placeholder_text = "Highlight items..."
+	stash_search_edit.custom_minimum_size = Vector2(470.0, 30.0)
+	stash_search_edit.add_theme_font_size_override("font_size", 10)
+	stash_search_edit.text_changed.connect(_on_stash_search_changed)
+	footer.add_child(stash_search_edit)
+
+	sort_button = _make_button("VALUE", _cycle_stash_sort, Vector2(90.0, 30.0))
+	sort_button.add_theme_font_size_override("font_size", 9)
+	footer.add_child(sort_button)
+
+	var wipe_button := _make_button("WIPE", _wipe_save, Vector2(70.0, 30.0))
+	wipe_button.add_theme_font_size_override("font_size", 8)
 	footer.add_child(wipe_button)
 
 func _build_crafting_panel() -> void:
@@ -626,7 +601,8 @@ func _build_crafting_panel() -> void:
 	craft_category_row.add_theme_constant_override("separation", 3)
 	source_root.add_child(craft_category_row)
 	for spec: Dictionary in [
-		{"key":"weapon", "label":"WPN"},
+		{"key":"gun", "label":"GUN"},
+		{"key":"blade", "label":"BLD"},
 		{"key":"armor", "label":"ARM"},
 		{"key":"charm", "label":"CHM"}
 	]:
@@ -638,6 +614,7 @@ func _build_crafting_panel() -> void:
 
 	var craft_weapon_row := HBoxContainer.new()
 	craft_weapon_row.name = "CraftWeaponFilterRow"
+	craft_weapon_row.visible = false
 	craft_weapon_row.add_theme_constant_override("separation", 3)
 	source_root.add_child(craft_weapon_row)
 	var craft_guns := _make_button("GUNS", _set_crafting_weapon_filter.bind("gun"), Vector2(88.0, 23.0))
@@ -656,9 +633,17 @@ func _build_crafting_panel() -> void:
 	source_root.add_child(stash_scroll)
 
 	crafting_stash_grid = GridContainer.new()
-	crafting_stash_grid.columns = 1
+	crafting_stash_grid.columns = 4
+	crafting_stash_grid.add_theme_constant_override("h_separation", 3)
 	crafting_stash_grid.add_theme_constant_override("v_separation", 3)
 	stash_scroll.add_child(crafting_stash_grid)
+
+	crafting_search_edit = LineEdit.new()
+	crafting_search_edit.placeholder_text = "Highlight items..."
+	crafting_search_edit.custom_minimum_size = Vector2(365.0, 28.0)
+	crafting_search_edit.add_theme_font_size_override("font_size", 9)
+	crafting_search_edit.text_changed.connect(_on_crafting_search_changed)
+	source_root.add_child(crafting_search_edit)
 
 	var item_panel := PanelContainer.new()
 	item_panel.custom_minimum_size = Vector2(360.0, 472.0)
