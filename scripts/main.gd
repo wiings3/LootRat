@@ -715,40 +715,31 @@ func _build_crafting_panel() -> void:
 	craft_title.add_theme_color_override("font_color", Color(0.76, 0.63, 0.37))
 	actions.add_child(craft_title)
 
-	var mutation_button := _make_button("MUTATION SHARD", _arm_crafting_currency.bind("mutation"), Vector2(352.0, 32.0))
-	crafting_buttons["mutation"] = mutation_button
-	actions.add_child(mutation_button)
+	var currency_grid := GridContainer.new()
+	currency_grid.columns = 2
+	currency_grid.add_theme_constant_override("h_separation", 4)
+	currency_grid.add_theme_constant_override("v_separation", 4)
+	actions.add_child(currency_grid)
 
-	var splice_button := _make_button("SPLICE SHARD", _arm_crafting_currency.bind("splice"), Vector2(352.0, 32.0))
-	crafting_buttons["splice"] = splice_button
-	actions.add_child(splice_button)
-
-	var scrap_button := _make_button("SCRAP ORB", _arm_crafting_currency.bind("scrap"), Vector2(352.0, 32.0))
-	crafting_buttons["scrap"] = scrap_button
-	actions.add_child(scrap_button)
-
-	var crown_button := _make_button("CROWN TOKEN", _arm_crafting_currency.bind("crown"), Vector2(352.0, 32.0))
-	crafting_buttons["crown"] = crown_button
-	actions.add_child(crown_button)
-
-	var hoarder_button := _make_button("HOARDER'S ORB", _arm_crafting_currency.bind("hoarder"), Vector2(352.0, 32.0))
-	crafting_buttons["hoarder"] = hoarder_button
-	actions.add_child(hoarder_button)
-
-	var chaos_button := _make_button("CHAOS TOKEN", _arm_crafting_currency.bind("chaos"), Vector2(352.0, 32.0))
-	crafting_buttons["chaos"] = chaos_button
-	actions.add_child(chaos_button)
-
-	var polish_button := _make_button("POLISH ORB", _arm_crafting_currency.bind("polish"), Vector2(352.0, 32.0))
-	crafting_buttons["polish"] = polish_button
-	actions.add_child(polish_button)
-
-	var mechanist_button := _make_button("MECHANIST'S SEAL", _arm_crafting_currency.bind("mechanist"), Vector2(352.0, 32.0))
-	crafting_buttons["mechanist"] = mechanist_button
-	actions.add_child(mechanist_button)
+	var currency_specs: Array[Dictionary] = [
+		{"key":"mutation", "label":"MUTATION"},
+		{"key":"splice", "label":"SPLICE"},
+		{"key":"scrap", "label":"SCRAP"},
+		{"key":"crown", "label":"CROWN"},
+		{"key":"hoarder", "label":"HOARDER"},
+		{"key":"chaos", "label":"CHAOS"},
+		{"key":"polish", "label":"POLISH"},
+		{"key":"mechanist", "label":"MECHANIST"}
+	]
+	for spec: Dictionary in currency_specs:
+		var currency_key: String = String(spec["key"])
+		var button := _make_button(String(spec["label"]), _arm_crafting_currency.bind(currency_key), Vector2(172.0, 48.0))
+		button.add_theme_font_size_override("font_size", 9)
+		crafting_buttons[currency_key] = button
+		currency_grid.add_child(button)
 
 	crafting_feedback_label = _muted_label("Choose equipped gear or an item from the stash.")
-	crafting_feedback_label.custom_minimum_size = Vector2(352.0, 38.0)
+	crafting_feedback_label.custom_minimum_size = Vector2(352.0, 32.0)
 	crafting_feedback_label.add_theme_font_size_override("font_size", 10)
 	crafting_feedback_label.add_theme_color_override("font_color", Color(0.64, 0.55, 0.39))
 	actions.add_child(crafting_feedback_label)
