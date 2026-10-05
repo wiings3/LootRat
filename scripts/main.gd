@@ -4,6 +4,7 @@ const SAVE_PATH: String = "user://loot_rat_save.json"
 const ARENA_BOUNDS: Rect2 = Rect2(40.0, 80.0, 1200.0, 590.0)
 const HIDEOUT_BOUNDS: Rect2 = Rect2(70.0, 105.0, 1140.0, 535.0)
 const HideoutScript = preload("res://scripts/hideout.gd")
+const ItemArt = preload("res://scripts/item_art.gd")
 
 var rng := RandomNumberGenerator.new()
 
@@ -802,6 +803,16 @@ func _make_button(text_value: String, callback: Callable, min_size: Vector2 = Ve
 	button.add_theme_color_override("font_pressed_color", Color(1.0, 0.91, 0.66))
 	button.add_theme_color_override("font_disabled_color", Color(0.39, 0.37, 0.33))
 	return button
+
+func _set_button_art(button: Button, texture: Texture2D, max_width: int = 32) -> void:
+	if texture == null:
+		button.icon = null
+		return
+	button.icon = texture
+	button.icon_max_width = max_width
+	button.expand_icon = true
+	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
 
 func _process(delta: float) -> void:
 	_update_top_bar()
@@ -2414,6 +2425,7 @@ func _update_equipped_slot_buttons() -> void:
 		var button := button_variant as Button
 		var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
 		if item.is_empty():
+			button.icon = null
 			button.text = "%s\nEMPTY" % slot_name.to_upper()
 			button.tooltip_text = ""
 			button.add_theme_color_override("font_color", Color(0.46, 0.43, 0.38))
@@ -2429,6 +2441,7 @@ func _update_equipped_slot_buttons() -> void:
 		else:
 			button.text = "%s\n%s" % [slot_name.to_upper(), base_name]
 		button.tooltip_text = String(item.get("name", base_name))
+		_set_button_art(button, ItemArt.texture_for_item(item), 34)
 		button.add_theme_font_size_override("font_size", 10)
 		button.add_theme_color_override("font_color", _rarity_color(rarity))
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity)))
@@ -2500,8 +2513,10 @@ func _rebuild_inventory() -> void:
 			currency_count += 1
 			var button := Button.new()
 			button.custom_minimum_size = Vector2(88.0, 88.0)
-			button.text = "●\n%s\n×%d" % [_craft_currency_name(key), int(stash_crafting.get(key, 0))]
-			button.add_theme_font_size_override("font_size", 8)
+			button.text = "×%d" % int(stash_crafting.get(key, 0))
+			button.tooltip_text = _craft_currency_name(key)
+			_set_button_art(button, ItemArt.texture_for_currency(key), 44)
+			button.add_theme_font_size_override("font_size", 9)
 			button.disabled = true
 			button.add_theme_stylebox_override("disabled", _arpg_slot_style(Color(0.58, 0.46, 0.24)))
 			button.add_theme_color_override("font_disabled_color", Color(0.82, 0.76, 0.64))
@@ -2520,8 +2535,10 @@ func _rebuild_inventory() -> void:
 			core_count += 1
 			var button := Button.new()
 			button.custom_minimum_size = Vector2(88.0, 88.0)
-			button.text = "◆\n%s\n×%d" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0))]
-			button.add_theme_font_size_override("font_size", 8)
+			button.text = "×%d" % int(stash_cores.get(core_id, 0))
+			button.tooltip_text = "%s Core" % _core_name(core_id)
+			_set_button_art(button, ItemArt.texture_for_core(core_id), 44)
+			button.add_theme_font_size_override("font_size", 9)
 			button.disabled = true
 			button.add_theme_stylebox_override("disabled", _arpg_slot_style(Color(0.25, 0.58, 0.72)))
 			button.add_theme_color_override("font_disabled_color", Color(0.55, 0.86, 1.0))
@@ -2556,7 +2573,8 @@ func _rebuild_inventory() -> void:
 		var selected: bool = item_id == selected_stash_item_id
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(88.0, 88.0)
-		button.text = _stash_tile_text(item)
+		button.text = ""
+		_set_button_art(button, ItemArt.texture_for_item(item), 54)
 		button.add_theme_font_size_override("font_size", 9)
 		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.tooltip_text = String(item.get("name", "Item"))
@@ -2866,7 +2884,8 @@ func _refresh_crafting_panel() -> void:
 			var compatible: bool = is_weapon and _core_archetype(core_id) == weapon_archetype
 			var slotted: bool = compatible and core_id == current_core
 			core_button.visible = compatible
-			core_button.text = "%s  ×%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), " • IN" if slotted else ""]
+			core_button.text = "%s ×%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), " • IN" if slotted else ""]
+			_set_button_art(core_button, ItemArt.texture_for_core(core_id), 22)
 			core_button.disabled = not compatible or slotted or int(stash_cores.get(core_id, 0)) <= 0
 			core_button.add_theme_stylebox_override("normal", _arpg_button_style(slotted, false))
 
@@ -2895,6 +2914,7 @@ func _refresh_crafting_panel() -> void:
 			button.visible = true
 			button.disabled = amount <= 0 or not tier_unlocked
 			button.text = "%s\n×%d" % [String(labels[key]), amount]
+			_set_button_art(button, ItemArt.texture_for_currency(key), 24)
 			button.add_theme_stylebox_override("normal", _arpg_button_style(armed, false))
 			button.add_theme_color_override("font_color", Color(1.0, 0.86, 0.55) if armed else Color(0.72, 0.69, 0.62))
 
@@ -2916,11 +2936,13 @@ func _refresh_crafting_sources() -> void:
 		var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
 		var selected: bool = crafting_target_source == "equipped" and crafting_target_slot == slot_name
 		if item.is_empty():
+			button.icon = null
 			button.text = "%s\nEMPTY" % slot_name.to_upper()
 			button.disabled = true
 			button.add_theme_color_override("font_color", Color(0.42, 0.40, 0.36))
 		else:
 			button.text = "%s\n%s" % [slot_name.to_upper(), _grid_item_short_name(item)]
+			_set_button_art(button, ItemArt.texture_for_item(item), 24)
 			button.disabled = false
 			button.add_theme_color_override("font_color", _rarity_color(String(item.get("rarity", "Common"))))
 		button.add_theme_stylebox_override("normal", _arpg_button_style(selected, false))
@@ -2947,7 +2969,9 @@ func _refresh_crafting_sources() -> void:
 		var selected: bool = crafting_target_source == "stash" and selected_stash_item_id == item_id
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(86.0, 78.0)
-		button.text = _stash_tile_text(item)
+		button.text = ""
+		button.tooltip_text = String(item.get("name", "Item"))
+		_set_button_art(button, ItemArt.texture_for_item(item), 46)
 		button.add_theme_font_size_override("font_size", 8)
 		button.add_theme_color_override("font_color", _rarity_color(rarity))
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity), selected))
