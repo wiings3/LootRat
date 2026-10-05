@@ -4,6 +4,31 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.56 — PoE-Style Inventory & Currency Interaction
+- Replaced the focused list experiment with a much closer Path of Exile interaction model.
+- Stash and character inventory are now presented side-by-side:
+  - **STASH** on the left
+  - **INVENTORY / EQUIPPED** on the right
+- Stash uses literal tabs instead of nested filters:
+  - Guns
+  - Blades
+  - Armor
+  - Charms
+  - Currency
+  - Cores
+- Gear is back in a spatial grid, but tabs prevent unrelated item classes from becoming one giant pile.
+- Added a stash search box that filters against item name, base, rarity, archetype, Core, modifiers, and Augments.
+- Hovering stash gear previews its complete tooltip and comparison against equipped gear; clicking selects it for actions.
+- Currency and Core tabs display their stored stacks directly in stash slots.
+- The Workbench uses the same compact grid/search vocabulary.
+- Crafting currency no longer acts like a menu command. Clicking a currency **arms** it; the next valid item clicked receives that craft.
+- Clicking the armed currency again releases it without crafting.
+- Invalid targets keep the currency armed and explain that it cannot be applied.
+- Crafting currencies are displayed as a 2-column palette instead of eight stacked action buttons.
+- Cores remain a separate socketing layer because they are weapon-identity components rather than normal crafting currency.
+
+Design rule: **stash tabs organize; hover explains; currency acts on items.**
+
 ## v0.55 — Focused Inventory Browser
 - Replaced the 40-cell wall-of-items stash with a focused category browser.
 - The Stash now opens directly into **Weapons / Armor / Charms** instead of an All-items view.
