@@ -102,6 +102,10 @@ var juice_elite: int = 0
 var feed_lines: Array[String] = []
 
 var selected_stash_item_id: int = -1
+var selected_stash_special_type: String = ""
+var selected_stash_special_key: String = ""
+var hovered_stash_special_type: String = ""
+var hovered_stash_special_key: String = ""
 var stash_filter: String = "gun"
 var stash_sort_mode: String = "value"
 
@@ -2545,9 +2549,12 @@ func _rebuild_inventory() -> void:
 			button.tooltip_text = _craft_currency_name(key)
 			_set_button_art(button, ItemArt.texture_for_currency(key), 32, "center")
 			button.add_theme_font_size_override("font_size", 9)
-			button.disabled = true
-			button.add_theme_stylebox_override("disabled", _arpg_slot_style(Color(0.58, 0.46, 0.24)))
-			button.add_theme_color_override("font_disabled_color", Color(0.82, 0.76, 0.64))
+			button.add_theme_stylebox_override("normal", _arpg_slot_style(Color(0.58, 0.46, 0.24)))
+			button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.86, 0.68, 0.34), true))
+			button.add_theme_color_override("font_color", Color(0.82, 0.76, 0.64))
+			button.mouse_entered.connect(_hover_stash_special.bind("currency", key))
+			button.mouse_exited.connect(_unhover_stash_special.bind("currency", key))
+			button.pressed.connect(_select_stash_special.bind("currency", key))
 			inventory_list.add_child(button)
 		stash_count_label.text = "CURRENCY • %d" % currency_count
 		_update_stash_controls()
@@ -2567,9 +2574,12 @@ func _rebuild_inventory() -> void:
 			button.tooltip_text = "%s Core" % _core_name(core_id)
 			_set_button_art(button, ItemArt.texture_for_core(core_id), 32, "center")
 			button.add_theme_font_size_override("font_size", 9)
-			button.disabled = true
-			button.add_theme_stylebox_override("disabled", _arpg_slot_style(Color(0.25, 0.58, 0.72)))
-			button.add_theme_color_override("font_disabled_color", Color(0.55, 0.86, 1.0))
+			button.add_theme_stylebox_override("normal", _arpg_slot_style(Color(0.25, 0.58, 0.72)))
+			button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.42, 0.82, 1.0), true))
+			button.add_theme_color_override("font_color", Color(0.55, 0.86, 1.0))
+			button.mouse_entered.connect(_hover_stash_special.bind("core", core_id))
+			button.mouse_exited.connect(_unhover_stash_special.bind("core", core_id))
+			button.pressed.connect(_select_stash_special.bind("core", core_id))
 			inventory_list.add_child(button)
 		stash_count_label.text = "CORES • %d" % core_count
 		_update_stash_controls()
@@ -2647,7 +2657,11 @@ func _rarity_color(rarity: String) -> Color:
 func _set_stash_filter(filter_value: String) -> void:
 	stash_filter = filter_value
 	selected_stash_item_id = -1
+	selected_stash_special_type = ""
+	selected_stash_special_key = ""
 	hovered_stash_item_id = -1
+	hovered_stash_special_type = ""
+	hovered_stash_special_key = ""
 	_rebuild_inventory()
 	_refresh_selected_item()
 	_update_stash_controls()
@@ -2684,7 +2698,108 @@ func _update_stash_controls() -> void:
 			"newest": sort_button.text = "NEW"
 			_: sort_button.text = "VALUE"
 
+func _currency_detail_bbcode(key: String) -> String:
+	var name_value: String = _craft_currency_name(key)
+	var owned: int = int(stash_crafting.get(key, 0))
+	var effect: String = ""
+	var target: String = ""
+	var requirement: String = "Available immediately"
+	match key:
+		"mutation":
+			effect = "Turns a Common item into Magic and adds 1 random modifier."
+			target = "COMMON ITEMS"
+		"splice":
+			effect = "Adds 1 random modifier to a Magic item with an open modifier slot. Existing modifiers are preserved."
+			target = "MAGIC ITEMS WITH < 2 MODIFIERS"
+		"scrap":
+			effect = "Completely reforges a Magic item's explicit modifiers, rolling 1–2 new modifiers."
+			target = "MAGIC ITEMS"
+		"crown":
+			effect = "Upgrades Magic → Rare, preserves every existing modifier, then adds 1 new random modifier."
+			target = "MAGIC ITEMS"
+			requirement = "Requires Claim Tier 2"
+		"hoarder":
+			effect = "Adds 1 random modifier to a Rare or Gilded item with an open modifier slot."
+			target = "RARE / GILDED ITEMS WITH AN OPEN SLOT"
+			requirement = "Requires Claim Tier 2"
+		"chaos":
+			effect = "Removes 1 random modifier from a Rare or Gilded item and replaces it with a new random modifier."
+			target = "RARE / GILDED ITEMS"
+			requirement = "Requires Claim Tier 2"
+		"polish":
+			effect = "Rerolls the numerical values of existing modifiers while preserving their identities and tiers."
+			target = "MAGIC / RARE / GILDED ITEMS WITH MODIFIERS"
+			requirement = "Requires Claim Tier 3"
+		"mechanist":
+			effect = "Installs a compatible Augment if the item has room. If its Augment slots are full, rerolls one existing Augment."
+			target = "NON-COMMON ITEMS"
+			requirement = "Requires Claim Tier 3"
+		_:
+			effect = "Unknown crafting effect."
+			target = "UNKNOWN"
+
+	var status_color: String = "#72df8b"
+	if (key == "crown" or key == "hoarder" or key == "chaos") and claim_tier < 2:
+		status_color = "#ff8a76"
+	elif (key == "polish" or key == "mechanist") and claim_tier < 3:
+		status_color = "#ff8a76"
+
+	var text: String = "[color=#d8ba73][font_size=22][b]%s[/b][/font_size][/color]" % name_value
+	text += "\n[color=#8c8373]CRAFTING CURRENCY[/color]"
+	text += "\n\n[color=#d7d2c8]%s[/color]" % effect
+	text += "\n\n[color=#82745a][font_size=10]VALID TARGET[/font_size][/color]\n[b]%s[/b]" % target
+	text += "\n\n[color=#82745a][font_size=10]ACCESS[/font_size][/color]\n[color=%s]%s[/color]" % [status_color, requirement]
+	text += "\n\n[color=#82745a][font_size=10]OWNED[/font_size][/color]\n[b]×%d[/b]" % owned
+	text += "\n\n[color=#6f6758]Consumed when applied at the Workbench.[/color]"
+	return text
+
+func _core_detail_bbcode(core_id: String) -> String:
+	var name_value: String = "%s Core" % _core_name(core_id)
+	var archetype: String = _core_archetype(core_id).capitalize()
+	var owned: int = int(stash_cores.get(core_id, 0))
+	var text: String = "[color=#6fd4ff][font_size=22][b]%s[/b][/font_size][/color]" % name_value
+	text += "\n[color=#8c8373]%s CORE[/color]" % archetype.to_upper()
+	text += "\n\n[color=#d7d2c8]%s[/color]" % _core_description(core_id)
+	text += "\n\n[color=#82745a][font_size=10]COMPATIBLE ARCHETYPE[/font_size][/color]\n[b]%s[/b]" % archetype
+	text += "\n\n[color=#82745a][font_size=10]OWNED[/font_size][/color]\n[b]×%d[/b]" % owned
+	text += "\n\n[color=#6f6758]Socket at the Workbench. Cores are reusable; replacing one returns the old Core to storage.[/color]"
+	return text
+
+func _show_stash_special_details(kind: String, key: String) -> void:
+	if selected_item_label == null:
+		return
+	if kind == "currency":
+		selected_item_label.text = _currency_detail_bbcode(key)
+	elif kind == "core":
+		selected_item_label.text = _core_detail_bbcode(key)
+	else:
+		return
+	selected_equip_button.disabled = true
+	selected_sell_button.disabled = true
+	selected_sell_button.text = "SELL"
+
+func _select_stash_special(kind: String, key: String) -> void:
+	selected_stash_item_id = -1
+	hovered_stash_item_id = -1
+	selected_stash_special_type = kind
+	selected_stash_special_key = key
+	_show_stash_special_details(kind, key)
+
+func _hover_stash_special(kind: String, key: String) -> void:
+	hovered_stash_special_type = kind
+	hovered_stash_special_key = key
+	_show_stash_special_details(kind, key)
+
+func _unhover_stash_special(kind: String, key: String) -> void:
+	if hovered_stash_special_type != kind or hovered_stash_special_key != key:
+		return
+	hovered_stash_special_type = ""
+	hovered_stash_special_key = ""
+	_refresh_selected_item()
+
 func _hover_stash_item(item_id: int) -> void:
+	hovered_stash_special_type = ""
+	hovered_stash_special_key = ""
 	hovered_stash_item_id = item_id
 	var index: int = _find_stash_item_index(item_id)
 	if index < 0:
@@ -2714,6 +2829,8 @@ func _select_equipped_slot(slot_name: String) -> void:
 
 func _select_stash_item(item_id: int) -> void:
 	selected_stash_item_id = item_id
+	selected_stash_special_type = ""
+	selected_stash_special_key = ""
 	hovered_stash_item_id = -1
 	_rebuild_inventory()
 	_refresh_selected_item()
@@ -2724,7 +2841,10 @@ func _refresh_selected_item() -> void:
 	var index: int = _find_stash_item_index(selected_stash_item_id)
 	if index < 0:
 		selected_stash_item_id = -1
-		selected_item_label.text = "[color=#686157]Select an item from the stash.[/color]"
+		if not selected_stash_special_type.is_empty() and not selected_stash_special_key.is_empty():
+			_show_stash_special_details(selected_stash_special_type, selected_stash_special_key)
+			return
+		selected_item_label.text = "[color=#686157]Select or hover an item, currency, or Core.[/color]"
 		selected_equip_button.disabled = true
 		selected_sell_button.disabled = true
 		return
