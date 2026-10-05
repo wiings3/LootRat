@@ -64,11 +64,11 @@ func _build_sprite_art() -> void:
 	sprite.texture = texture
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.z_index = 2
-	var art_scale: float = 1.65
+	var art_scale: float = 2.0
 	if loot_type == "gear":
-		art_scale = 1.85
+		art_scale = 2.0
 	elif loot_type == "jackpot":
-		art_scale = 2.15
+		art_scale = 3.0
 	sprite.scale = Vector2.ONE * art_scale
 	add_child(sprite)
 
