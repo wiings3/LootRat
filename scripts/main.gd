@@ -367,8 +367,9 @@ func _build_hub_panel() -> void:
 
 func _build_character_panel() -> void:
 	character_panel = PanelContainer.new()
-	character_panel.position = Vector2(760.0, 88.0)
-	character_panel.size = Vector2(475.0, 570.0)
+	character_panel.position = Vector2(745.0, 88.0)
+	character_panel.size = Vector2(505.0, 570.0)
+	character_panel.clip_contents = true
 	character_panel.add_theme_stylebox_override("panel", _arpg_frame_style(true))
 	hud.add_child(character_panel)
 
@@ -387,6 +388,7 @@ func _build_character_panel() -> void:
 	root.add_child(equipment_title)
 
 	var slot_row := HBoxContainer.new()
+	slot_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	slot_row.add_theme_constant_override("separation", 6)
 	root.add_child(slot_row)
 	for spec: Dictionary in [
@@ -396,7 +398,8 @@ func _build_character_panel() -> void:
 	]:
 		var slot_key: String = String(spec["key"])
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(143.0, 95.0)
+		button.custom_minimum_size = Vector2(0.0, 95.0)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.add_theme_font_size_override("font_size", 10)
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(Color(0.22, 0.19, 0.14)))
@@ -408,7 +411,8 @@ func _build_character_panel() -> void:
 	stats_label = RichTextLabel.new()
 	stats_label.bbcode_enabled = true
 	stats_label.fit_content = false
-	stats_label.custom_minimum_size = Vector2(447.0, 84.0)
+	stats_label.custom_minimum_size = Vector2(0.0, 84.0)
+	stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_label.add_theme_font_size_override("normal_font_size", 11)
 	stats_label.add_theme_constant_override("line_separation", 2)
 	root.add_child(stats_label)
@@ -426,7 +430,8 @@ func _build_character_panel() -> void:
 	selected_item_label.bbcode_enabled = true
 	selected_item_label.fit_content = false
 	selected_item_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	selected_item_label.custom_minimum_size = Vector2(447.0, 240.0)
+	selected_item_label.custom_minimum_size = Vector2(0.0, 240.0)
+	selected_item_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	selected_item_label.add_theme_font_size_override("normal_font_size", 12)
 	selected_item_label.add_theme_constant_override("line_separation", 2)
 	root.add_child(selected_item_label)
@@ -434,11 +439,13 @@ func _build_character_panel() -> void:
 	var action_row := HBoxContainer.new()
 	action_row.add_theme_constant_override("separation", 5)
 	root.add_child(action_row)
-	selected_equip_button = _make_button("EQUIP", _equip_selected_item, Vector2(220.0, 34.0))
+	selected_equip_button = _make_button("EQUIP", _equip_selected_item, Vector2(0.0, 34.0))
+	selected_equip_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	selected_equip_button.add_theme_font_size_override("font_size", 11)
 	selected_equip_button.add_theme_stylebox_override("normal", _arpg_button_style(true))
 	action_row.add_child(selected_equip_button)
-	selected_sell_button = _make_button("SELL", _sell_selected_item, Vector2(220.0, 34.0))
+	selected_sell_button = _make_button("SELL", _sell_selected_item, Vector2(0.0, 34.0))
+	selected_sell_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	selected_sell_button.add_theme_font_size_override("font_size", 10)
 	action_row.add_child(selected_sell_button)
 
@@ -448,8 +455,9 @@ func _build_character_panel() -> void:
 
 func _build_gear_panel() -> void:
 	gear_panel = PanelContainer.new()
-	gear_panel.position = Vector2(45.0, 88.0)
+	gear_panel.position = Vector2(30.0, 88.0)
 	gear_panel.size = Vector2(705.0, 570.0)
+	gear_panel.clip_contents = true
 	gear_panel.add_theme_stylebox_override("panel", _arpg_frame_style(true))
 	hud.add_child(gear_panel)
 
@@ -2407,17 +2415,21 @@ func _update_equipped_slot_buttons() -> void:
 		var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
 		if item.is_empty():
 			button.text = "%s\nEMPTY" % slot_name.to_upper()
+			button.tooltip_text = ""
 			button.add_theme_color_override("font_color", Color(0.46, 0.43, 0.38))
 			button.add_theme_stylebox_override("normal", _arpg_slot_style(Color(0.18, 0.16, 0.12)))
 			continue
 		var rarity: String = String(item.get("rarity", "Common"))
-		var detail: String = ""
+		var base_name: String = String(item.get("base_name", slot_name.capitalize()))
+		if base_name.length() > 18:
+			base_name = base_name.left(17) + "…"
 		if slot_name == "weapon":
-			detail = "%s • %s Core" % [String(item.get("weapon_archetype", "gun")).capitalize(), _core_name(String(item.get("core_id", "repeater")))]
+			var core_text: String = "%s Core" % _core_name(String(item.get("core_id", "repeater")))
+			button.text = "%s\n%s\n%s" % [slot_name.to_upper(), base_name, core_text]
 		else:
-			detail = String(item.get("base_name", slot_name.capitalize()))
-		button.text = "%s\n%s\n%s" % [slot_name.to_upper(), String(item.get("name", "Item")), detail]
-		button.add_theme_font_size_override("font_size", 11)
+			button.text = "%s\n%s" % [slot_name.to_upper(), base_name]
+		button.tooltip_text = String(item.get("name", base_name))
+		button.add_theme_font_size_override("font_size", 10)
 		button.add_theme_color_override("font_color", _rarity_color(rarity))
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity)))
 		button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.72, 0.54, 0.25), true))
