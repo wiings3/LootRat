@@ -715,35 +715,35 @@ func _build_crafting_panel() -> void:
 	craft_title.add_theme_color_override("font_color", Color(0.76, 0.63, 0.37))
 	actions.add_child(craft_title)
 
-	var mutation_button := _make_button("MUTATION SHARD", _craft_mutation, Vector2(352.0, 32.0))
+	var mutation_button := _make_button("MUTATION SHARD", _arm_crafting_currency.bind("mutation"), Vector2(352.0, 32.0))
 	crafting_buttons["mutation"] = mutation_button
 	actions.add_child(mutation_button)
 
-	var splice_button := _make_button("SPLICE SHARD", _craft_splice, Vector2(352.0, 32.0))
+	var splice_button := _make_button("SPLICE SHARD", _arm_crafting_currency.bind("splice"), Vector2(352.0, 32.0))
 	crafting_buttons["splice"] = splice_button
 	actions.add_child(splice_button)
 
-	var scrap_button := _make_button("SCRAP ORB", _craft_scrap, Vector2(352.0, 32.0))
+	var scrap_button := _make_button("SCRAP ORB", _arm_crafting_currency.bind("scrap"), Vector2(352.0, 32.0))
 	crafting_buttons["scrap"] = scrap_button
 	actions.add_child(scrap_button)
 
-	var crown_button := _make_button("CROWN TOKEN", _craft_crown, Vector2(352.0, 32.0))
+	var crown_button := _make_button("CROWN TOKEN", _arm_crafting_currency.bind("crown"), Vector2(352.0, 32.0))
 	crafting_buttons["crown"] = crown_button
 	actions.add_child(crown_button)
 
-	var hoarder_button := _make_button("HOARDER'S ORB", _craft_hoarder, Vector2(352.0, 32.0))
+	var hoarder_button := _make_button("HOARDER'S ORB", _arm_crafting_currency.bind("hoarder"), Vector2(352.0, 32.0))
 	crafting_buttons["hoarder"] = hoarder_button
 	actions.add_child(hoarder_button)
 
-	var chaos_button := _make_button("CHAOS TOKEN", _craft_chaos, Vector2(352.0, 32.0))
+	var chaos_button := _make_button("CHAOS TOKEN", _arm_crafting_currency.bind("chaos"), Vector2(352.0, 32.0))
 	crafting_buttons["chaos"] = chaos_button
 	actions.add_child(chaos_button)
 
-	var polish_button := _make_button("POLISH ORB", _craft_polish, Vector2(352.0, 32.0))
+	var polish_button := _make_button("POLISH ORB", _arm_crafting_currency.bind("polish"), Vector2(352.0, 32.0))
 	crafting_buttons["polish"] = polish_button
 	actions.add_child(polish_button)
 
-	var mechanist_button := _make_button("MECHANIST'S SEAL", _craft_mechanist, Vector2(352.0, 32.0))
+	var mechanist_button := _make_button("MECHANIST'S SEAL", _arm_crafting_currency.bind("mechanist"), Vector2(352.0, 32.0))
 	crafting_buttons["mechanist"] = mechanist_button
 	actions.add_child(mechanist_button)
 
@@ -875,9 +875,11 @@ func _open_hub_station(station_name: String) -> void:
 				crafting_target_source = "stash"
 				var selected_index: int = _find_stash_item_index(selected_stash_item_id)
 				var selected_item: Dictionary = stash_gear[selected_index]
-				crafting_filter = String(selected_item.get("slot", "weapon"))
-				if crafting_filter == "weapon":
-					crafting_weapon_filter = String(selected_item.get("weapon_archetype", "gun"))
+				var selected_slot: String = String(selected_item.get("slot", "weapon"))
+				if selected_slot == "weapon":
+					crafting_filter = String(selected_item.get("weapon_archetype", "gun"))
+				else:
+					crafting_filter = selected_slot
 			else:
 				crafting_target_source = "equipped"
 				crafting_target_slot = "weapon"
@@ -2821,11 +2823,13 @@ func _open_crafting_panel() -> void:
 	_open_hub_station("craft")
 
 func _close_crafting_panel() -> void:
+	armed_craft_currency = ""
 	_close_hub_station()
 
 func _refresh_crafting_panel() -> void:
 	if crafting_panel == null:
 		return
+
 	var material_parts: Array[String] = []
 	var material_keys: Array[String] = ["mutation", "splice", "scrap", "crown", "hoarder", "chaos", "polish", "mechanist"]
 	for material_key: String in material_keys:
@@ -2833,30 +2837,21 @@ func _refresh_crafting_panel() -> void:
 		if amount > 0:
 			material_parts.append("%s ×%d" % [_craft_currency_name(material_key), amount])
 	crafting_currency_label.text = "[color=#82745a][font_size=10]OWNED MATERIALS[/font_size][/color]  %s" % ("   •   ".join(material_parts) if not material_parts.is_empty() else "None")
-	_refresh_crafting_sources()
 
+	_refresh_crafting_sources()
 	var item: Dictionary = _get_crafting_target_item()
 	if item.is_empty():
-		crafting_item_label.text = "[color=#686157]Choose an equipped item or a stash item.[/color]"
-		if crafting_core_title != null:
-			crafting_core_title.visible = false
-		for button_variant: Variant in crafting_buttons.values():
-			if button_variant is Button:
-				(button_variant as Button).disabled = true
-				(button_variant as Button).visible = false
-		for button_variant: Variant in core_buttons.values():
-			if button_variant is Button:
-				(button_variant as Button).disabled = true
-				(button_variant as Button).visible = false
-		return
+		crafting_item_label.text = "[color=#686157]Select a currency, then click an item. Click an item without currency selected to inspect it.[/color]"
+	else:
+		crafting_item_label.text = _item_to_bbcode(item)
 
-	crafting_item_label.text = _item_to_bbcode(item)
-	var rarity: String = String(item.get("rarity", "Common"))
-	var affix_count: int = _item_affix_count(item)
-	var affix_cap: int = _rarity_affix_cap(rarity)
-	var is_weapon: bool = String(item.get("slot", "")) == "weapon"
-	var weapon_archetype: String = String(item.get("weapon_archetype", "gun"))
-	var current_core: String = String(item.get("core_id", "repeater"))
+	var is_weapon: bool = not item.is_empty() and String(item.get("slot", "")) == "weapon"
+	var weapon_archetype: String = ""
+	var current_core: String = ""
+	if is_weapon:
+		weapon_archetype = String(item.get("weapon_archetype", "gun"))
+		current_core = String(item.get("core_id", "repeater"))
+
 	if crafting_core_title != null:
 		crafting_core_title.visible = is_weapon
 
@@ -2866,46 +2861,39 @@ func _refresh_crafting_panel() -> void:
 		if core_button_variant is Button:
 			var core_button := core_button_variant as Button
 			var compatible: bool = is_weapon and _core_archetype(core_id) == weapon_archetype
-			core_button.visible = compatible
 			var slotted: bool = compatible and core_id == current_core
-			core_button.text = "%s  x%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), "  • SLOTTED" if slotted else ""]
+			core_button.visible = compatible
+			core_button.text = "%s  ×%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), " • IN" if slotted else ""]
 			core_button.disabled = not compatible or slotted or int(stash_cores.get(core_id, 0)) <= 0
 			core_button.add_theme_stylebox_override("normal", _arpg_button_style(slotted, false))
 
-	var relevant: Dictionary = {
-		"mutation": rarity == "Common",
-		"splice": rarity == "Magic" and affix_count < 2,
-		"scrap": rarity == "Magic",
-		"crown": rarity == "Magic" and claim_tier >= 2,
-		"hoarder": (rarity == "Rare" or rarity == "Gilded") and affix_count < affix_cap and claim_tier >= 2,
-		"chaos": (rarity == "Rare" or rarity == "Gilded") and affix_count > 0 and claim_tier >= 2,
-		"polish": rarity != "Common" and affix_count > 0 and claim_tier >= 3,
-		"mechanist": rarity != "Common" and claim_tier >= 3
+	var labels: Dictionary = {
+		"mutation":"MUTATION\nCommon → Magic",
+		"splice":"SPLICE\nAdd Magic mod",
+		"scrap":"SCRAP\nReforge Magic",
+		"crown":"CROWN\nMagic → Rare",
+		"hoarder":"HOARDER\nAdd Rare mod",
+		"chaos":"CHAOS\nReplace Rare mod",
+		"polish":"POLISH\nReroll values",
+		"mechanist":"MECHANIST\nAugment"
 	}
 	for key_variant: Variant in crafting_buttons.keys():
 		var key: String = String(key_variant)
 		var button_variant: Variant = crafting_buttons.get(key)
 		if button_variant is Button:
 			var button := button_variant as Button
-			button.visible = bool(relevant.get(key, false))
-			button.disabled = not button.visible or int(stash_crafting.get(key, 0)) <= 0
-
-	var labels: Dictionary = {
-		"mutation":"MUTATION SHARD  x%d\nCommon → Magic + 1 modifier" % int(stash_crafting.get("mutation", 0)),
-		"splice":"SPLICE SHARD  x%d\nAdd 1 modifier to Magic" % int(stash_crafting.get("splice", 0)),
-		"scrap":"SCRAP ORB  x%d\nReforge Magic modifiers" % int(stash_crafting.get("scrap", 0)),
-		"crown":"CROWN TOKEN  x%d\nMagic → Rare, keep mods + add 1" % int(stash_crafting.get("crown", 0)),
-		"hoarder":"HOARDER'S ORB  x%d\nAdd 1 modifier to Rare" % int(stash_crafting.get("hoarder", 0)),
-		"chaos":"CHAOS TOKEN  x%d\nReplace 1 random Rare modifier" % int(stash_crafting.get("chaos", 0)),
-		"polish":"POLISH ORB  x%d\nReroll values, keep tiers" % int(stash_crafting.get("polish", 0)),
-		"mechanist":"MECHANIST'S SEAL  x%d\nAdd or reroll an Augment" % int(stash_crafting.get("mechanist", 0))
-	}
-	for key_variant: Variant in labels.keys():
-		var key: String = String(key_variant)
-		var button_variant: Variant = crafting_buttons.get(key)
-		if button_variant is Button:
-			var button := button_variant as Button
-			button.text = String(labels[key])
+			var tier_unlocked: bool = true
+			if (key == "crown" or key == "hoarder" or key == "chaos") and claim_tier < 2:
+				tier_unlocked = false
+			if (key == "polish" or key == "mechanist") and claim_tier < 3:
+				tier_unlocked = false
+			var amount: int = int(stash_crafting.get(key, 0))
+			var armed: bool = armed_craft_currency == key
+			button.visible = true
+			button.disabled = amount <= 0 or not tier_unlocked
+			button.text = "%s\n×%d" % [String(labels[key]), amount]
+			button.add_theme_stylebox_override("normal", _arpg_button_style(armed, false))
+			button.add_theme_color_override("font_color", Color(1.0, 0.86, 0.55) if armed else Color(0.72, 0.69, 0.62))
 
 func _set_crafting_filter(filter_value: String) -> void:
 	crafting_filter = filter_value
@@ -2913,11 +2901,8 @@ func _set_crafting_filter(filter_value: String) -> void:
 	selected_stash_item_id = -1
 	_refresh_crafting_panel()
 
-func _set_crafting_weapon_filter(filter_value: String) -> void:
-	crafting_weapon_filter = filter_value
-	crafting_target_source = "none"
-	selected_stash_item_id = -1
-	_refresh_crafting_panel()
+func _set_crafting_weapon_filter(_filter_value: String) -> void:
+	pass
 
 func _refresh_crafting_sources() -> void:
 	for slot_name: String in ["weapon", "armor", "charm"]:
@@ -2945,61 +2930,47 @@ func _refresh_crafting_sources() -> void:
 			var active: bool = key == crafting_filter
 			button.add_theme_stylebox_override("normal", _arpg_button_style(active, false))
 			button.add_theme_color_override("font_color", Color(0.93, 0.81, 0.55) if active else Color(0.59, 0.56, 0.50))
-	for key_variant: Variant in crafting_weapon_filter_buttons.keys():
-		var key: String = String(key_variant)
-		var button_variant: Variant = crafting_weapon_filter_buttons.get(key)
-		if button_variant is Button:
-			var button := button_variant as Button
-			button.visible = crafting_filter == "weapon"
-			var active: bool = key == crafting_weapon_filter
-			button.add_theme_stylebox_override("normal", _arpg_button_style(active, false))
-			button.add_theme_color_override("font_color", Color(0.93, 0.81, 0.55) if active else Color(0.59, 0.56, 0.50))
 
 	if crafting_stash_grid == null:
 		return
 	for child: Node in crafting_stash_grid.get_children():
 		child.queue_free()
 
-	var visible_items: int = 0
 	for item: Dictionary in stash_gear:
-		if not _item_matches_browser(item, crafting_filter, crafting_weapon_filter):
+		if not _item_matches_tab(item, crafting_filter) or not _matches_search(item, crafting_search_query):
 			continue
-		visible_items += 1
 		var item_id: int = int(item.get("id", -1))
 		var rarity: String = String(item.get("rarity", "Common"))
 		var selected: bool = crafting_target_source == "stash" and selected_stash_item_id == item_id
 		var button := Button.new()
-		button.custom_minimum_size = Vector2(350.0, 52.0)
-		button.text = _item_browser_row_text(item)
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.add_theme_font_size_override("font_size", 9)
+		button.custom_minimum_size = Vector2(86.0, 78.0)
+		button.text = _stash_tile_text(item)
+		button.add_theme_font_size_override("font_size", 8)
 		button.add_theme_color_override("font_color", _rarity_color(rarity))
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity), selected))
 		button.add_theme_stylebox_override("hover", _arpg_slot_style(Color(0.74, 0.57, 0.29), true))
 		button.pressed.connect(_select_crafting_stash_item.bind(item_id))
 		crafting_stash_grid.add_child(button)
 
-	if visible_items == 0:
-		var empty := Label.new()
-		empty.text = "No matching items."
-		empty.custom_minimum_size = Vector2(350.0, 55.0)
-		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty.add_theme_color_override("font_color", Color(0.42, 0.40, 0.36))
-		crafting_stash_grid.add_child(empty)
-
 func _select_crafting_stash_item(item_id: int) -> void:
-	if _find_stash_item_index(item_id) < 0:
+	var index: int = _find_stash_item_index(item_id)
+	if index < 0:
 		return
 	selected_stash_item_id = item_id
 	crafting_target_source = "stash"
 	crafting_target_slot = ""
-	var index: int = _find_stash_item_index(item_id)
 	var item: Dictionary = stash_gear[index]
-	crafting_filter = String(item.get("slot", "weapon"))
-	if crafting_filter == "weapon":
-		crafting_weapon_filter = String(item.get("weapon_archetype", "gun"))
-	crafting_feedback_label.text = "Stash item selected."
-	_refresh_crafting_panel()
+	var slot: String = String(item.get("slot", "weapon"))
+	if slot == "weapon":
+		crafting_filter = String(item.get("weapon_archetype", "gun"))
+	else:
+		crafting_filter = slot
+
+	if armed_craft_currency.is_empty():
+		crafting_feedback_label.text = "Item selected."
+		_refresh_crafting_panel()
+	else:
+		_apply_armed_currency()
 
 func _select_crafting_equipped(slot_name: String) -> void:
 	var item: Dictionary = equipped.get(slot_name, {}) as Dictionary
@@ -3008,11 +2979,71 @@ func _select_crafting_equipped(slot_name: String) -> void:
 	crafting_target_source = "equipped"
 	crafting_target_slot = slot_name
 	selected_stash_item_id = -1
-	crafting_filter = slot_name
+
 	if slot_name == "weapon":
-		crafting_weapon_filter = String(item.get("weapon_archetype", "gun"))
-	crafting_feedback_label.text = "%s selected from equipped gear." % slot_name.capitalize()
+		crafting_filter = String(item.get("weapon_archetype", "gun"))
+	else:
+		crafting_filter = slot_name
+
+	if armed_craft_currency.is_empty():
+		crafting_feedback_label.text = "%s selected." % slot_name.capitalize()
+		_refresh_crafting_panel()
+	else:
+		_apply_armed_currency()
+
+func _arm_crafting_currency(key: String) -> void:
+	if int(stash_crafting.get(key, 0)) <= 0:
+		return
+	if (key == "crown" or key == "hoarder" or key == "chaos") and claim_tier < 2:
+		return
+	if (key == "polish" or key == "mechanist") and claim_tier < 3:
+		return
+
+	if armed_craft_currency == key:
+		armed_craft_currency = ""
+		crafting_feedback_label.text = "Currency released."
+	else:
+		armed_craft_currency = key
+		crafting_feedback_label.text = "%s selected — click an item to apply it." % _craft_currency_name(key).to_upper()
 	_refresh_crafting_panel()
+
+func _currency_can_apply(key: String, item: Dictionary) -> bool:
+	if item.is_empty() or int(stash_crafting.get(key, 0)) <= 0:
+		return false
+	var rarity: String = String(item.get("rarity", "Common"))
+	var affix_count: int = _item_affix_count(item)
+	var affix_cap: int = _rarity_affix_cap(rarity)
+	match key:
+		"mutation": return rarity == "Common"
+		"splice": return rarity == "Magic" and affix_count < 2
+		"scrap": return rarity == "Magic"
+		"crown": return claim_tier >= 2 and rarity == "Magic"
+		"hoarder": return claim_tier >= 2 and (rarity == "Rare" or rarity == "Gilded") and affix_count < affix_cap
+		"chaos": return claim_tier >= 2 and (rarity == "Rare" or rarity == "Gilded") and affix_count > 0
+		"polish": return claim_tier >= 3 and rarity != "Common" and affix_count > 0
+		"mechanist": return claim_tier >= 3 and rarity != "Common"
+		_: return false
+
+func _apply_armed_currency() -> void:
+	var key: String = armed_craft_currency
+	var item: Dictionary = _get_crafting_target_item()
+	if key.is_empty():
+		return
+	if not _currency_can_apply(key, item):
+		crafting_feedback_label.text = "%s cannot be applied to that item." % _craft_currency_name(key)
+		_refresh_crafting_panel()
+		return
+
+	armed_craft_currency = ""
+	match key:
+		"mutation": _craft_mutation()
+		"splice": _craft_splice()
+		"scrap": _craft_scrap()
+		"crown": _craft_crown()
+		"hoarder": _craft_hoarder()
+		"chaos": _craft_chaos()
+		"polish": _craft_polish()
+		"mechanist": _craft_mechanist()
 
 func _get_crafting_target_item() -> Dictionary:
 	if crafting_target_source == "equipped":
