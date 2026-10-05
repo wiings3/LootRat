@@ -804,14 +804,42 @@ func _make_button(text_value: String, callback: Callable, min_size: Vector2 = Ve
 	button.add_theme_color_override("font_disabled_color", Color(0.39, 0.37, 0.33))
 	return button
 
-func _set_button_art(button: Button, texture: Texture2D, max_width: int = 32) -> void:
+func _set_button_art(button: Button, texture: Texture2D, pixel_size: int = 32, placement: String = "center") -> void:
+	button.icon = null
+	var art_node: Node = button.get_node_or_null("ItemArt")
+	var art: TextureRect = null
+	if art_node is TextureRect:
+		art = art_node as TextureRect
+	else:
+		art = TextureRect.new()
+		art.name = "ItemArt"
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		button.add_child(art)
+
 	if texture == null:
-		button.icon = null
+		art.visible = false
 		return
-	button.icon = texture
-	button.add_theme_constant_override("icon_max_width", max_width)
-	button.expand_icon = true
-	button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+	art.visible = true
+	art.texture = texture
+	var half_size: float = float(pixel_size) * 0.5
+	art.anchor_top = 0.5
+	art.anchor_bottom = 0.5
+	if placement == "left":
+		art.anchor_left = 0.0
+		art.anchor_right = 0.0
+		art.offset_left = 8.0
+		art.offset_right = 8.0 + float(pixel_size)
+	else:
+		art.anchor_left = 0.5
+		art.anchor_right = 0.5
+		art.offset_left = -half_size
+		art.offset_right = half_size
+	art.offset_top = -half_size
+	art.offset_bottom = half_size
 
 
 func _process(delta: float) -> void:
@@ -2441,7 +2469,7 @@ func _update_equipped_slot_buttons() -> void:
 		else:
 			button.text = "%s\n%s" % [slot_name.to_upper(), base_name]
 		button.tooltip_text = String(item.get("name", base_name))
-		_set_button_art(button, ItemArt.texture_for_item(item), 34)
+		_set_button_art(button, ItemArt.texture_for_item(item), 32, "left")
 		button.add_theme_font_size_override("font_size", 10)
 		button.add_theme_color_override("font_color", _rarity_color(rarity))
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity)))
@@ -2513,9 +2541,9 @@ func _rebuild_inventory() -> void:
 			currency_count += 1
 			var button := Button.new()
 			button.custom_minimum_size = Vector2(88.0, 88.0)
-			button.text = "×%d" % int(stash_crafting.get(key, 0))
+			button.text = "\n\n\n×%d" % int(stash_crafting.get(key, 0))
 			button.tooltip_text = _craft_currency_name(key)
-			_set_button_art(button, ItemArt.texture_for_currency(key), 44)
+			_set_button_art(button, ItemArt.texture_for_currency(key), 32, "center")
 			button.add_theme_font_size_override("font_size", 9)
 			button.disabled = true
 			button.add_theme_stylebox_override("disabled", _arpg_slot_style(Color(0.58, 0.46, 0.24)))
@@ -2535,9 +2563,9 @@ func _rebuild_inventory() -> void:
 			core_count += 1
 			var button := Button.new()
 			button.custom_minimum_size = Vector2(88.0, 88.0)
-			button.text = "×%d" % int(stash_cores.get(core_id, 0))
+			button.text = "\n\n\n×%d" % int(stash_cores.get(core_id, 0))
 			button.tooltip_text = "%s Core" % _core_name(core_id)
-			_set_button_art(button, ItemArt.texture_for_core(core_id), 44)
+			_set_button_art(button, ItemArt.texture_for_core(core_id), 32, "center")
 			button.add_theme_font_size_override("font_size", 9)
 			button.disabled = true
 			button.add_theme_stylebox_override("disabled", _arpg_slot_style(Color(0.25, 0.58, 0.72)))
@@ -2574,7 +2602,7 @@ func _rebuild_inventory() -> void:
 		var button := Button.new()
 		button.custom_minimum_size = Vector2(88.0, 88.0)
 		button.text = ""
-		_set_button_art(button, ItemArt.texture_for_item(item), 54)
+		_set_button_art(button, ItemArt.texture_for_item(item), 48, "center")
 		button.add_theme_font_size_override("font_size", 9)
 		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.tooltip_text = String(item.get("name", "Item"))
@@ -2885,7 +2913,7 @@ func _refresh_crafting_panel() -> void:
 			var slotted: bool = compatible and core_id == current_core
 			core_button.visible = compatible
 			core_button.text = "%s ×%d%s" % [_core_name(core_id).to_upper(), int(stash_cores.get(core_id, 0)), " • IN" if slotted else ""]
-			_set_button_art(core_button, ItemArt.texture_for_core(core_id), 22)
+			_set_button_art(core_button, ItemArt.texture_for_core(core_id), 32, "left")
 			core_button.disabled = not compatible or slotted or int(stash_cores.get(core_id, 0)) <= 0
 			core_button.add_theme_stylebox_override("normal", _arpg_button_style(slotted, false))
 
@@ -2914,7 +2942,7 @@ func _refresh_crafting_panel() -> void:
 			button.visible = true
 			button.disabled = amount <= 0 or not tier_unlocked
 			button.text = "%s\n×%d" % [String(labels[key]), amount]
-			_set_button_art(button, ItemArt.texture_for_currency(key), 24)
+			_set_button_art(button, ItemArt.texture_for_currency(key), 32, "left")
 			button.add_theme_stylebox_override("normal", _arpg_button_style(armed, false))
 			button.add_theme_color_override("font_color", Color(1.0, 0.86, 0.55) if armed else Color(0.72, 0.69, 0.62))
 
@@ -2942,7 +2970,7 @@ func _refresh_crafting_sources() -> void:
 			button.add_theme_color_override("font_color", Color(0.42, 0.40, 0.36))
 		else:
 			button.text = "%s\n%s" % [slot_name.to_upper(), _grid_item_short_name(item)]
-			_set_button_art(button, ItemArt.texture_for_item(item), 24)
+			_set_button_art(button, ItemArt.texture_for_item(item), 32, "left")
 			button.disabled = false
 			button.add_theme_color_override("font_color", _rarity_color(String(item.get("rarity", "Common"))))
 		button.add_theme_stylebox_override("normal", _arpg_button_style(selected, false))
@@ -2971,7 +2999,7 @@ func _refresh_crafting_sources() -> void:
 		button.custom_minimum_size = Vector2(86.0, 78.0)
 		button.text = ""
 		button.tooltip_text = String(item.get("name", "Item"))
-		_set_button_art(button, ItemArt.texture_for_item(item), 46)
+		_set_button_art(button, ItemArt.texture_for_item(item), 32, "center")
 		button.add_theme_font_size_override("font_size", 8)
 		button.add_theme_color_override("font_color", _rarity_color(rarity))
 		button.add_theme_stylebox_override("normal", _arpg_slot_style(_rarity_color(rarity), selected))
