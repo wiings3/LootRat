@@ -4,6 +4,20 @@ A deliberately focused loot-game prototype:
 
 **Kill -> loot -> push through rooms -> extract -> equip/sell -> juice the next Claim -> descend for greedier rewards.**
 
+## v0.57 — Item Sprite Art Pass
+- Integrated a curated atlas built from the uploaded 1,244-sprite item pack.
+- Replaced programmer-art item glyphs with real pixel-art sprites for:
+  - all 8 weapon chassis
+  - all 4 armor bases
+  - all 4 charm bases
+  - all 8 crafting currencies
+  - all 8 Cores
+  - Coins and Seals
+- Stash tiles, equipped slots, Workbench item browsing, Core controls, and crafting currency controls now use the same sprite identities.
+- World loot pickups now render the actual matching item/currency/Core sprite instead of placeholder circles/polygons.
+- Sprites are packed into `assets/ui/item_atlas.png` and mapped through `scripts/item_art.gd`.
+- Pixel art uses nearest-neighbor texture filtering in UI and world pickups.
+
 ## v0.56 — PoE-Style Inventory & Currency Interaction
 - Replaced the focused list experiment with a much closer Path of Exile interaction model.
 - Stash and character inventory are now presented side-by-side:
